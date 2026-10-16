@@ -10,11 +10,16 @@ def main():
     root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=root / "dist" / "fright-feud-app-engine.zip")
+    parser.add_argument("--prefix", default="", help="Put every file under this top-level folder, e.g. fright-fued")
     args = parser.parse_args()
+    if args.prefix and (not args.prefix.replace("-", "").replace("_", "").isalnum()):
+        parser.error("--prefix must be a plain folder name")
+    prefix = args.prefix + "/" if args.prefix else ""
     manifest = json.loads((root / "app.json").read_text(encoding="utf-8"))
     if manifest.get("id") != "fright-feud" or not (root / "index.html").is_file():
         parser.error("Expected the Fright Feud manifest and index.html")
-    files = [root / name for name in ("app.json", "index.html", "README.md", "CLAUDE.md", "THIRD-PARTY-NOTICES.md")]
+    files = [root / name for name in ("app.json", "index.html", "README.md", "CLAUDE.md", "THIRD-PARTY-NOTICES.md",
+                                        "Launch Fright Feud.command", "Get Latest Updates.command")]
     for folder in ("fonts", "scripts", "tests", "desktop", "docs"):
         files.extend(p for p in sorted((root / folder).rglob("*")) if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc" and p.name != ".DS_Store")
     for path in files:
@@ -23,7 +28,7 @@ def main():
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with ZipFile(args.output, "w", compression=ZIP_DEFLATED) as archive:
         for path in files:
-            archive.write(path, path.relative_to(root).as_posix())
+            archive.write(path, prefix + path.relative_to(root).as_posix())
     print(f"Built {args.output.resolve()} ({args.output.stat().st_size:,} bytes)")
 
 
