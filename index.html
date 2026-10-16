@@ -512,8 +512,25 @@ $("multBtn").onclick=()=>{ S.multOverride[S.r]=(mult()%3)+1; render(); };
 const FM={ rows:[[],[]], mask:false, timer:null, left:20 };
 const blankRow=()=>({text:"",pts:0,shown:false,ptsShown:false});
 let hostWin=null;
+const fmRevealTimers=new Set(), fmRevealTickets=new WeakMap();
+const fmQueuedRows=new WeakSet();
+function cancelBonusReveals(){
+  fmRevealTimers.forEach(clearTimeout); fmRevealTimers.clear();
+}
+function bonusDelay(fn,ms){
+  const timer=setTimeout(()=>{fmRevealTimers.delete(timer);fn();},ms);
+  fmRevealTimers.add(timer);
+}
+function revealBonusPlayer(p){
+  const rows=FM.rows[p];
+  rows.filter(r=>r.text&&!r.shown&&!fmQueuedRows.has(r)).forEach((r,n)=>{
+    fmQueuedRows.add(r);
+    bonusDelay(()=>{fmQueuedRows.delete(r);if(FM.rows[p]===rows&&!r.shown)revealRow(p,rows.indexOf(r));},n*1800);
+  });
+}
 
 function fmInit(){
+  cancelBonusReveals();
   FM.rows=[0,1].map(()=>BONUS.map(blankRow)); FM.mask=false;
   $("winMsg").classList.add("hidden"); fmRender(); sendState(true);
 }
@@ -553,8 +570,12 @@ function drawTimer(){ $("timer").textContent=FM.left; $("timer").classList.toggl
 
 function revealRow(p,i){
   const r=FM.rows[p][i]; if(!r||!r.text) return false;
+  const ticket=(fmRevealTickets.get(r)||0)+1; fmRevealTickets.set(r,ticket);
   r.shown=true; r.ptsShown=false; fmRender(); sendState();
-  setTimeout(()=>{ r.ptsShown=true; r.pts>0?SFX.ding():SFX.buzz(); fmRender(); sendState(); },900);
+  bonusDelay(()=>{
+    if(!r.shown||FM.rows[p][i]!==r||fmRevealTickets.get(r)!==ticket) return;
+    r.ptsShown=true; r.pts>0?SFX.ding():SFX.buzz(); fmRender(); sendState();
+  },900);
   return true;
 }
 
@@ -581,8 +602,7 @@ window.addEventListener("message",e=>{
       break;
     case "reveal": revealRow(m.p,m.i); break;
     case "revealAll":{
-      const todo=FM.rows[m.p].map((x,i)=>i).filter(i=>FM.rows[m.p][i].text&&!FM.rows[m.p][i].shown);
-      todo.forEach((i,n)=>setTimeout(()=>revealRow(m.p,i),n*1800));
+      revealBonusPlayer(m.p);
       break;
     }
     case "hide": if(r){ r.shown=false; r.ptsShown=false; fmRender(); } break;
@@ -783,5 +803,7 @@ document.addEventListener("keydown",e=>{
 
 fmInit();
 </script>
+<script src="assets/vendor/qrcode.js"></script>
+<script src="assets/phone-board.js"></script>
 </body>
 </html>
