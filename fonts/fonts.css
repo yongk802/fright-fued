@@ -1,0 +1,29 @@
+/* Local copies of Creepster and Oswald. See the adjacent OFL license files. */
+@font-face {
+  font-family: Creepster;
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("creepster-regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: Oswald;
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("oswald-regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: Oswald;
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("oswald-semibold.ttf") format("truetype");
+}
+@font-face {
+  font-family: Oswald;
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("oswald-bold.ttf") format("truetype");
+}
