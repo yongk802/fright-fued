@@ -46,7 +46,11 @@ fi
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 for f in index.html app.json; do
-  curl -fsSL "$BASE/$f" -o "$TMP/$f"
+  # The query string skips GitHub's few-minute raw-file cache.
+  if ! curl -fsSL "$BASE/$f?nocache=$(date +%s)" -o "$TMP/$f"; then
+    echo "Could not download $f from GitHub; nothing was changed. Check the internet connection."
+    read -r -p "Press Return to close." _; exit 1
+  fi
 done
 if ! grep -q "Fright Feud" "$TMP/index.html" || ! grep -q '"id": *"fright-feud"' "$TMP/app.json"; then
   echo "The download did not look like Fright Feud; nothing was changed."
