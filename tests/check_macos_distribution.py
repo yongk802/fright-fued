@@ -65,6 +65,7 @@ def main():
     parser.add_argument("--arch", choices=["arm64", "x86_64"], default="arm64")
     parser.add_argument("--artifacts", type=Path, default=Path("test-results/macos"))
     parser.add_argument("--keep-home", action="store_true")
+    parser.add_argument("--phone-host", action="store_true", help="Exercise paired phone controls at the native launch URL")
     args = parser.parse_args()
     bundle = args.bundle.resolve()
     args.artifacts.mkdir(parents=True, exist_ok=True)
@@ -97,9 +98,14 @@ def main():
         assert second["url"] == first["url"], (first, second)
         # Playwright is a development dependency, deliberately absent from the app.
         developer_python = os.environ.get("FRIGHT_FEUD_TEST_PYTHON", sys.executable)
-        subprocess.run([developer_python, str(Path(__file__).with_name("check_app_engine.py")),
-                        "--url", base, "--game-url", first["url"],
-                        "--screenshots", str(args.artifacts / args.arch)], check=True)
+        if args.phone_host:
+            browser_check = [developer_python, str(Path(__file__).with_name("check_phone_host.py")),
+                             "--url", first["url"], "--screenshots", str(args.artifacts / args.arch)]
+        else:
+            browser_check = [developer_python, str(Path(__file__).with_name("check_app_engine.py")),
+                             "--url", base, "--game-url", first["url"],
+                             "--screenshots", str(args.artifacts / args.arch)]
+        subprocess.run(browser_check, check=True)
         native = ready(["/usr/bin/arch", "-" + args.arch, str(installed_executable), "--headless",
                         "--home", str(temporary), "--port", str(port)])
         assert native["reused_engine"], native

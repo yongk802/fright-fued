@@ -51,7 +51,19 @@ def main():
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
-            board = browser.new_context(viewport={'width': 1440, 'height': 1000}).new_page()
+            errors, external = [], []
+            def monitor(context):
+                context.on('page', lambda page: page.on('pageerror', lambda error: errors.append(str(error))))
+                def local_only(route):
+                    hostname = urlsplit(route.request.url).hostname or ''
+                    if hostname in ('127.0.0.1', 'localhost') or hostname.endswith('.localhost'):
+                        route.continue_()
+                    else:
+                        external.append(route.request.url)
+                        route.abort()
+                context.route('**/*', local_only)
+                return context
+            board = monitor(browser.new_context(viewport={'width': 1440, 'height': 1000})).new_page()
             board.goto(board_url)
             board.locator('#splash').click()
             expect(board.get_by_role('button', name='Connect phone', exact=True)).to_be_visible(timeout=4000)
@@ -76,7 +88,7 @@ def main():
             board.wait_for_function("AC && AC.state === 'running'")
             info = json.load(urlopen(Request(origin + '/phone/info', headers={'Authorization': 'Bearer ' + nonce})))
             host_token = info['host_token']
-            phone_context = browser.new_context(viewport={'width':390, 'height':844}, is_mobile=True, has_touch=True)
+            phone_context = monitor(browser.new_context(viewport={'width':390, 'height':844}, is_mobile=True, has_touch=True))
             phone = phone_context.new_page()
             phone.goto(origin + '/phone/#' + host_token)
             expect(phone.locator('#connection')).to_contain_text('Connected')
@@ -268,7 +280,7 @@ def main():
             phone.unroute('**/phone/state')
             expect(phone.locator('#connection')).to_contain_text('Connected', timeout=10000)
             # A second board lease freezes the old window and preserves the snapshot.
-            newer = browser.new_context(viewport={'width':1440,'height':1000}).new_page()
+            newer = monitor(browser.new_context(viewport={'width':1440,'height':1000})).new_page()
             newer.goto(board_url)
             newer.locator('#splash').click()
             expect(board.locator('#phoneStatus')).to_contain_text('replaced')
@@ -283,6 +295,8 @@ def main():
             expect(newer.locator('#hostPanelBtn')).to_be_visible()
             new_info = json.load(urlopen(Request(origin + '/phone/info', headers={'Authorization': 'Bearer ' + nonce})))
             assert new_info['host_token'] != host_token
+            assert not errors, errors
+            assert not external, external
             browser.close()
     finally:
         for server in (companion, fixture):

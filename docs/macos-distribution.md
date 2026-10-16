@@ -94,6 +94,8 @@ an explicit temporary home and a nonproduction loopback port. For a built app:
 ```sh
 python3 tests/check_macos_distribution.py --bundle '.build/macos/Fright Feud.app' --arch arm64
 python3 tests/check_macos_distribution.py --bundle '.build/macos/Fright Feud.app' --arch x86_64
+python3 tests/check_macos_distribution.py --bundle '.build/macos/Fright Feud.app' --arch arm64 --phone-host
+python3 tests/check_macos_distribution.py --bundle '.build/macos/Fright Feud.app' --arch x86_64 --phone-host
 ```
 
 The x86_64 test on Apple Silicon requires translation support on the developer

@@ -86,6 +86,8 @@ take precedence in the engine catalog.
 
 1. Connect the Mac and iPhone to the same Wi-Fi. Open Fright Feud using the
    Desktop shortcut (which gets the latest source), or a fresh version 1.2 Mac install.
+   When upgrading the older Desktop shortcut for the first time, let it update,
+   close that game tab, and launch the shortcut once more so it uses the new launcher.
 2. Click **Connect phone** on the laptop, then scan the QR code with the iPhone
    Camera and open it in Safari. A link is also provided for manual entry.
 3. The phone shows private answers and touch controls. Enter team names there,
@@ -100,7 +102,8 @@ Reloading the paired laptop restores the most recent in-memory snapshot with
 the timer paused. Restarting the Mac or ending the companion clears that session.
 
 If macOS asks to allow incoming network connections for the bundled Python,
-allow it on your trusted network. Guest Wi-Fi that isolates devices cannot pair;
+allow it on your trusted network. Allow Safari local-network access if asked.
+Guest Wi-Fi that isolates devices cannot pair;
 use a network that allows the devices to communicate. Internet is not needed
 for pairing or play. Keep the private QR/link for the host: anyone who has it on
 that network can control the game. **Disconnect phone** revokes that link.
