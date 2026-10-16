@@ -47,17 +47,21 @@ Be honest about what was verified: the ZIP was checked in the cloud, not on a Ma
   followed by Cmd-R in the game tab. It replaces `index.html` and `app.json` and
   keeps backups under `~/Library/Application Support/Fright Feud/backups`.
 
-## Desktop shortcut and updater (if not set up yet)
+## Desktop folder with launcher and updater (preferred)
 
-The app must have opened once first (Control-click → Open on first launch). Then in
-Terminal:
+A ZIP alone does not create anything on the Desktop. The reliable path is one
+Terminal paste that creates `~/Desktop/fright-fued` with every project file and the
+repo-root executables `Launch Fright Feud.command` and `Get Latest Updates.command`:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/yongk802/fright-fued/<branch>/scripts/mac-desktop-setup.sh | bash
 ```
 
-Replace `<branch>` with the branch the updater script's `BRANCH=` line points at.
-If the working branch changes, update `BRANCH=` and the URL in
-`scripts/mac-desktop-setup.sh` and `README.md`, commit, push, and have the user
-re-run the command. Test script changes with a temporary `HOME` and a stub
-`osascript` on `PATH`; never touch real user directories.
+Replace `<branch>` with the branch the `BRANCH=` lines point at. The updater
+refreshes the Desktop folder and copies `index.html`, `app.json` and `fonts/` into
+the installed game, with backups. Keep both `.command` files executable in git
+(mode 755). If the working branch changes, update `BRANCH=` in
+`scripts/mac-desktop-setup.sh` and `Get Latest Updates.command` and the URLs in
+`README.md` and here, commit, push, and have the user
+re-run the command. Test script changes with a temporary `HOME` and stubs for
+`open`/`osascript` on `PATH`; never touch real user directories.

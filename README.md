@@ -37,19 +37,24 @@ browser when finished; the local engine stays available for the next launch.
 See [Mac distribution details](docs/macos-distribution.md) for development,
 verification, and the distinction between the full Mac app and the static ZIP.
 
-## Desktop shortcut and updates (Mac)
+## Desktop folder, launcher, and updates (Mac)
 
-After the app has opened once, run this in Terminal:
+Paste this into Terminal once:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/yongk802/fright-fued/claude/ecstatic-dijkstra-hiijnn/scripts/mac-desktop-setup.sh | bash
 ```
 
-It adds a **Fright Feud** shortcut and an **Update Fright Feud.command** to the
-Desktop. The updater downloads the newest `index.html` and `app.json` from that
-branch into the installed game, keeps the previous copy under
-`~/Library/Application Support/Fright Feud/backups`, and asks you to refresh the
-browser tab. Your Mac does not update by itself; run the updater after each change.
+It creates a **fright-fued** folder on the Desktop with every project file plus:
+
+- **Launch Fright Feud.command**: opens the installed Fright Feud.app, or the
+  app from your downloaded ZIP the first time so it can install itself.
+- **Get Latest Updates.command**: downloads the latest version of that branch
+  from GitHub into the folder and into the installed game that the app plays.
+  Then refresh the browser tab. Earlier copies are kept under
+  `~/Library/Application Support/Fright Feud/backups`.
+
+Your Mac does not update by itself; double-click the updater after each change.
 
 ## Static ZIP for an existing App Engine
 

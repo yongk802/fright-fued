@@ -1,72 +1,34 @@
 #!/bin/bash
-# One-time Mac setup: puts two items on the Desktop.
-#   "Fright Feud"                  - alias to the installed ~/Applications/Fright Feud.app
-#   "Update Fright Feud.command"   - downloads the latest game file from the working
-#                                    branch into the installed game, keeping a backup.
+# One-time Mac setup: creates ~/Desktop/fright-fued with all project files plus
+#   "Launch Fright Feud.command"  - starts the game
+#   "Get Latest Updates.command"  - downloads the latest version from GitHub
 # Run with:
 #   curl -fsSL https://raw.githubusercontent.com/yongk802/fright-fued/claude/ecstatic-dijkstra-hiijnn/scripts/mac-desktop-setup.sh | bash
 set -eu
-
-APP="$HOME/Applications/Fright Feud.app"
-DESKTOP="$HOME/Desktop"
-
-if [ ! -d "$APP" ]; then
-  echo "Fright Feud.app is not installed at $APP yet."
-  echo "Open the Fright Feud.app from the downloaded ZIP once (Control-click > Open), then run this again."
-  exit 1
-fi
-
-if [ ! -e "$DESKTOP/Fright Feud" ]; then
-  osascript -e "tell application \"Finder\" to make alias file to (POSIX file \"$APP\") at (POSIX file \"$DESKTOP\")" >/dev/null
-  echo "Added Desktop shortcut: Fright Feud"
-else
-  echo "Desktop shortcut already exists: Fright Feud"
-fi
-
-UPDATER="$DESKTOP/Update Fright Feud.command"
-cat > "$UPDATER" <<'UPDATER_EOF'
-#!/bin/bash
-# Downloads the latest Fright Feud game from GitHub into the installed copy.
-set -eu
 BRANCH="claude/ecstatic-dijkstra-hiijnn"
-BASE="https://raw.githubusercontent.com/yongk802/fright-fued/$BRANCH"
+TARBALL="https://codeload.github.com/yongk802/fright-fued/tar.gz/refs/heads/$BRANCH"
+FOLDER="$HOME/Desktop/fright-fued"
 
-TARGET=""
-for dir in "$HOME/Library/Application Support/Fright Feud/apps/fright-feud" \
-           "$HOME/git/personal-apps/fright-feud"; do
-  if [ -d "$dir" ] && [ ! -L "$dir" ] && grep -q '"id": *"fright-feud"' "$dir/app.json" 2>/dev/null; then
-    TARGET="$dir"; break
+if [ -e "$FOLDER" ]; then
+  if [ -x "$FOLDER/Get Latest Updates.command" ]; then
+    echo "$FOLDER already exists. Double-click 'Get Latest Updates.command' in it to update."
+  else
+    echo "$FOLDER already exists and was not made by this setup; it was left untouched."
+    echo "Rename or move it, then run this again."
   fi
-done
-if [ -z "$TARGET" ]; then
-  echo "Could not find the installed game. Open Fright Feud from the Desktop once, then try again."
-  read -r -p "Press Return to close." _; exit 1
+  exit 1
 fi
 
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-for f in index.html app.json; do
-  # The query string skips GitHub's few-minute raw-file cache.
-  if ! curl -fsSL "$BASE/$f?nocache=$(date +%s)" -o "$TMP/$f"; then
-    echo "Could not download $f from GitHub; nothing was changed. Check the internet connection."
-    read -r -p "Press Return to close." _; exit 1
-  fi
-done
-if ! grep -q "Fright Feud" "$TMP/index.html" || ! grep -q '"id": *"fright-feud"' "$TMP/app.json"; then
-  echo "The download did not look like Fright Feud; nothing was changed."
-  read -r -p "Press Return to close." _; exit 1
-fi
+curl -fsSL "$TARBALL" -o "$TMP/latest.tar.gz"
+mkdir "$TMP/new"
+tar -xzf "$TMP/latest.tar.gz" -C "$TMP/new" --strip-components 1
+grep -q '"id": *"fright-feud"' "$TMP/new/app.json"
+[ -x "$TMP/new/Launch Fright Feud.command" ] && [ -x "$TMP/new/Get Latest Updates.command" ]
+mv "$TMP/new" "$FOLDER"
 
-STAMP="$(date +%Y%m%d-%H%M%S)"
-BACKUPS="$HOME/Library/Application Support/Fright Feud/backups/$STAMP"
-mkdir -p "$BACKUPS"
-cp "$TARGET/index.html" "$TARGET/app.json" "$BACKUPS/"
-cp "$TMP/index.html" "$TMP/app.json" "$TARGET/"
-echo "Updated $TARGET"
-echo "Previous version saved in $BACKUPS"
-echo "Now refresh the Fright Feud browser tab (Command-R)."
-read -r -p "Press Return to close." _
-UPDATER_EOF
-chmod +x "$UPDATER"
-echo "Added Desktop updater: Update Fright Feud.command"
-echo "Done. Double-click 'Fright Feud' on your Desktop to play."
+echo "Created $FOLDER"
+echo "  Launch Fright Feud.command  - double-click to play"
+echo "  Get Latest Updates.command  - double-click to get the latest changes"
+open "$FOLDER" 2>/dev/null || true
