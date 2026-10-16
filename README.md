@@ -37,24 +37,23 @@ browser when finished; the local engine stays available for the next launch.
 See [Mac distribution details](docs/macos-distribution.md) for development,
 verification, and the distinction between the full Mac app and the static ZIP.
 
-## Desktop folder, launcher, and updates (Mac)
+## Desktop shortcut that always plays the latest version (Mac)
 
-Paste this into Terminal once:
+After Fright Feud.app has opened once, paste this into Terminal:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/yongk802/fright-fued/claude/ecstatic-dijkstra-hiijnn/scripts/mac-desktop-setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/yongk802/fright-fued/main/scripts/mac-desktop-setup.sh | bash
 ```
 
-It creates a **fright-fued** folder on the Desktop with every project file plus:
+It creates a **fright-fued** folder with every project file and a **Fright Feud**
+shortcut with a pumpkin icon on the Desktop. Each time you double-click
+the shortcut, it downloads the latest `main` branch from GitHub, updates the
+installed game, and opens it in a new browser tab. Without internet, it opens the
+version already installed. Earlier copies are kept under
+`~/Library/Application Support/Fright Feud/backups`.
 
-- **Launch Fright Feud.command**: opens the installed Fright Feud.app, or the
-  app from your downloaded ZIP the first time so it can install itself.
-- **Get Latest Updates.command**: downloads the latest version of that branch
-  from GitHub into the folder and into the installed game that the app plays.
-  Then refresh the browser tab. Earlier copies are kept under
-  `~/Library/Application Support/Fright Feud/backups`.
-
-Your Mac does not update by itself; double-click the updater after each change.
+**Get Latest Updates.command** in the folder updates without launching. The icon
+is in `icon/` if you want to assign it elsewhere.
 
 ## Static ZIP for an existing App Engine
 

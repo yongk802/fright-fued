@@ -1,7 +1,11 @@
 #!/bin/bash
-# Double-click to launch Fright Feud. It starts App Engine if needed and opens the
-# game in your browser. Before the first install, it finds the downloaded app (or
-# its ZIP) and opens it through macOS's normal first-open approval.
+# Double-click (or use the Desktop "Fright Feud" shortcut) to play.
+# Every launch first gets the latest version from GitHub, then opens the game.
+# Before the first install, it finds the downloaded app (or its ZIP) and opens it
+# through macOS's normal first-open approval.
+# The body is in braces so bash reads it fully before an update replaces this file.
+{
+FOLDER="$(cd "$(dirname "$0")" && pwd)"
 APP="$HOME/Applications/Fright Feud.app"
 BUNDLE_ID="com.yongk802.fright-feud"
 RELEASE="https://github.com/yongk802/fright-fued/releases/download/v1.1.0/Fright-Feud-macOS.zip"
@@ -18,12 +22,22 @@ first_open() {
   finish
 }
 
+# 1. Get the latest version (keeps playing the current one if this fails).
+if ! bash "$FOLDER/scripts/mac-update.sh"; then
+  echo "Starting the version already installed."
+fi
+echo
+
+# 2. Launch. The app opens the game in a new browser tab and then quits, so
+#    every launch shows the newest files.
 if [ -d "$APP" ]; then
+  echo "Opening Fright Feud…"
   open "$APP"
+  sleep 2
   exit 0
 fi
 
-# 1. The app anywhere on this Mac (Spotlight), or in the usual download spots.
+# Not installed yet: the app anywhere on this Mac (Spotlight), or the usual spots.
 found="$(mdfind "kMDItemCFBundleIdentifier == '$BUNDLE_ID'" 2>/dev/null | grep -v '/\.Trash/' | head -n 1)"
 for candidate in "$found" "$HOME/Downloads/Fright Feud.app" "$HOME/Desktop/Fright Feud.app" \
                  "$HOME/Downloads/Fright-Feud-macOS/Fright Feud.app" "/Applications/Fright Feud.app"; do
@@ -32,7 +46,7 @@ for candidate in "$found" "$HOME/Downloads/Fright Feud.app" "$HOME/Desktop/Frigh
   fi
 done
 
-# 2. The downloaded ZIP: unzip it with Archive Utility (as a Finder double-click does).
+# The downloaded ZIP: unzip it with Archive Utility (as a Finder double-click does).
 zip="$(ls -t "$HOME/Downloads"/Fright-Feud-macOS*.zip 2>/dev/null | head -n 1)"
 if [ -n "$zip" ]; then
   echo "Unzipping $zip…"
@@ -49,9 +63,9 @@ if [ -n "$zip" ]; then
   finish
 fi
 
-# 3. Nothing downloaded yet: download it in the browser as usual.
 echo "Fright Feud.app isn't on this Mac yet. Opening the download in your browser…"
 open "$RELEASE"
 echo
 echo "When the download finishes, double-click this launcher again."
 finish
+}

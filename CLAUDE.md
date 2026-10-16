@@ -27,8 +27,8 @@ Safari fullscreen fallback. Host windows communicate only with the actual opener
 through postMessage. Fullscreen failure must be handled without an unhandled error.
 
 The user's target Mac runs macOS 12.6. Do cloud development in Claude Code on the
-web; do not require them to install the Claude CLI. Their local installation does
-not auto-sync with this repository. Explain how to download/pull and reload each
+web; do not require them to install the Claude CLI. Their installation updates
+from `main` when they launch it from the Desktop shortcut (`Launch Fright Feud.command`). Explain how to download/pull and reload each
 update. State any browser/version limitations honestly.
 
 Run focused browser checks when changing integration behavior:
@@ -47,8 +47,10 @@ App Engine validation is justified by a plain static-server preview alone.
 Before delivery, run `python3 scripts/package.py` and provide the resulting
 `dist/fright-feud-app-engine.zip` if the environment supports downloadable outputs.
 The ZIP must have `app.json` and `index.html` at the root. Do not include `.git`,
-virtual environments, credentials, caches, or test screenshots. Commit changes to
-the user's chosen branch and use a pull request for review when appropriate.
+virtual environments, credentials, caches, or test screenshots. The user asked for
+game changes to be merged straight into `main` without pull requests: follow the
+`update-game` skill (`.claude/skills/update-game/SKILL.md`). Their Desktop shortcut
+downloads `main` and relaunches the game, so a change reaches them only on `main`.
 Do not add AI co-author trailers unless the user asks for them.
 
 For the user's one-click Mac installation request, the primary deliverable is

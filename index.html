@@ -154,9 +154,80 @@ kbd{background:var(--plum);border:1px solid #5b2a75;border-radius:4px;padding:0 
   .tile .inner{transition:none}
   #xover span,.win,.team.buzzed{animation:none}
 }
+
+/* ---------- launch splash ---------- */
+#splash{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 50% 40%,#5b1d7a 0%,#2a0d3d 45%,#0b0412 100%);cursor:pointer;overflow:hidden;
+  transition:opacity .7s ease}
+#splash.fade{opacity:0;pointer-events:none}
+#splash svg.scene{position:absolute;inset:0;width:100%;height:100%}
+#splash h1{position:relative;font-family:var(--display);font-weight:400;margin:0;line-height:1;letter-spacing:.05em;
+  font-size:clamp(3.5rem,13vw,10rem);text-align:center;
+  background:linear-gradient(90deg,#ff7a1a,#ffd27a,#9cff57,#c86bff,#ff4fa3,#ff7a1a);background-size:300% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 18px rgba(255,122,26,.6)) drop-shadow(0 5px 0 #3a0a4a);
+  animation:splashPop .9s cubic-bezier(.2,1.6,.4,1) both,splashHue 3s linear infinite}
+#splash p{position:relative;font-family:var(--ui);color:var(--candle);letter-spacing:.2em;text-transform:uppercase;
+  font-size:clamp(.8rem,1.6vw,1.1rem);margin-top:1.2rem;opacity:.85;animation:splashPop .9s .4s both}
+@keyframes splashPop{from{transform:scale(.3) rotate(-8deg);opacity:0}to{transform:none;opacity:1}}
+@keyframes splashHue{to{background-position:300% 0}}
+@keyframes splashBat{0%{transform:translate(-15vw,10vh)}50%{transform:translate(55vw,-4vh)}100%{transform:translate(115vw,8vh)}}
+@keyframes splashFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+@keyframes splashFlap{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.35)}}
+@keyframes splashTwinkle{0%,100%{opacity:.25}50%{opacity:1}}
+#splash .bat{animation:splashBat 4.5s linear infinite}
+#splash .bat2{animation-duration:5.5s;animation-delay:-2s}
+#splash .bat3{animation-duration:3.8s;animation-delay:-1s}
+#splash .wing{transform-box:fill-box;transform-origin:center;animation:splashFlap .25s ease-in-out infinite}
+#splash .float{animation:splashFloat 2.4s ease-in-out infinite}
+#splash .float2{animation-delay:-1.2s}
+#splash .star{animation:splashTwinkle 1.8s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce){#splash *{animation:none!important}}
 </style>
 </head>
 <body>
+
+<!-- LAUNCH SPLASH: shown briefly on every launch; click or press any key to skip -->
+<div id="splash" role="dialog" aria-label="Fright Fued!">
+<svg class="scene" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+<circle cx="1180" cy="170" r="95" fill="#fff4c2" opacity=".9"/><circle cx="1150" cy="150" r="16" fill="#ead89a" opacity=".6"/><circle cx="1210" cy="205" r="11" fill="#ead89a" opacity=".6"/>
+<circle class="star" cx="80" cy="90" r="2.2" fill="#ffd27a" style="animation-delay:0s"/><circle class="star" cx="210" cy="40" r="2.2" fill="#9cff57" style="animation-delay:-0.5s"/><circle class="star" cx="420" cy="120" r="2.2" fill="#ff4fa3" style="animation-delay:-1s"/><circle class="star" cx="980" cy="60" r="2.2" fill="#c86bff" style="animation-delay:-0.3s"/><circle class="star" cx="1120" cy="140" r="2.2" fill="#ffd27a" style="animation-delay:-1.2s"/><circle class="star" cx="1260" cy="70" r="2.2" fill="#9cff57" style="animation-delay:-0.8s"/><circle class="star" cx="700" cy="30" r="2.2" fill="#ff7a1a" style="animation-delay:-1.5s"/><circle class="star" cx="1380" cy="200" r="2.2" fill="#ff4fa3" style="animation-delay:-0.2s"/><circle class="star" cx="30" cy="260" r="2.2" fill="#c86bff" style="animation-delay:-0.9s"/><g stroke="#c9b6dd" stroke-width="1.5" fill="none" opacity=".45"><path d="M0 0 L190 0 M0 0 L0 190 M0 0 L170 110 M0 0 L110 170"/>
+<path d="M60 0 q-6 30 -40 32 q-2 -26 -20 -32 M120 0 q-10 60 -78 70 q-12 -40 -42 -70 M180 0 q-14 90 -120 106 q-20 -60 -60 -106"/></g>
+<path d="M0 900 V790 q120 -50 240 -10 q140 -60 300 0 q160 -50 330 -5 q170 -55 330 0 q130 -40 240 -10 V900z" fill="#170722"/>
+<g fill="#170722"><rect x="1300" y="660" width="34" height="140" rx="6"/><path d="M1290 668 h54 l-27 -70z"/><rect x="110" y="700" width="24" height="90"/><path d="M98 708 h48 l-24 -56z"/></g>
+<g transform="translate(200 560) scale(1.25)"><g class="float ">
+<ellipse cx="0" cy="0" rx="62" ry="50" fill="#ff7a1a"/><ellipse cx="-28" cy="2" rx="30" ry="48" fill="#ff8f2e"/><ellipse cx="28" cy="2" rx="30" ry="48" fill="#ff8f2e"/>
+<ellipse cx="0" cy="2" rx="22" ry="50" fill="#ffa040"/><path d="M-4 -48 q2 -22 16 -26" stroke="#3f7a1a" stroke-width="9" fill="none" stroke-linecap="round"/>
+<path d="M-34 -12 l14 -16 l14 16z M6 -12 l14 -16 l14 16z" fill="#ffe14d"/><path d="M-40 14 q40 36 80 0 l-12 6 l-8 -8 l-10 10 l-10 -10 l-10 10 l-10 -10 l-8 8z" fill="#ffe14d"/></g></g><g transform="translate(1010 770) scale(0.9)"><g class="float float2">
+<ellipse cx="0" cy="0" rx="62" ry="50" fill="#ff7a1a"/><ellipse cx="-28" cy="2" rx="30" ry="48" fill="#ff8f2e"/><ellipse cx="28" cy="2" rx="30" ry="48" fill="#ff8f2e"/>
+<ellipse cx="0" cy="2" rx="22" ry="50" fill="#ffa040"/><path d="M-4 -48 q2 -22 16 -26" stroke="#3f7a1a" stroke-width="9" fill="none" stroke-linecap="round"/>
+<path d="M-34 -12 l14 -16 l14 16z M6 -12 l14 -16 l14 16z" fill="#ffe14d"/><path d="M-36 16 q36 28 72 0 l-14 4 l-8 -6 l-14 6 l-14 -6 l-8 6z" fill="#ffe14d"/></g></g><g transform="translate(470 800) scale(0.7)"><g class="float ">
+<ellipse cx="0" cy="0" rx="62" ry="50" fill="#ff7a1a"/><ellipse cx="-28" cy="2" rx="30" ry="48" fill="#ff8f2e"/><ellipse cx="28" cy="2" rx="30" ry="48" fill="#ff8f2e"/>
+<ellipse cx="0" cy="2" rx="22" ry="50" fill="#ffa040"/><path d="M-4 -48 q2 -22 16 -26" stroke="#3f7a1a" stroke-width="9" fill="none" stroke-linecap="round"/>
+<path d="M-34 -12 l14 -16 l14 16z M6 -12 l14 -16 l14 16z" fill="#ffe14d"/><path d="M-36 16 q36 28 72 0 l-14 4 l-8 -6 l-14 6 l-14 -6 l-8 6z" fill="#ffe14d"/></g></g>
+<g transform="translate(1170 560)"><g class="float float2"><path d="M-50 60 v-70 a50 50 0 0 1 100 0 v70 l-17 -14 l-16 14 l-17 -14 l-17 14 l-16 -14z" fill="#f4ead8" opacity=".92"/>
+<ellipse cx="-17" cy="-10" rx="8" ry="12" fill="#2a0d3d"/><ellipse cx="17" cy="-10" rx="8" ry="12" fill="#2a0d3d"/><ellipse cx="0" cy="22" rx="10" ry="13" fill="#2a0d3d"/></g></g><g transform="translate(250 700) rotate(-20)"><path d="M-46 0 l-18 -14 v28z M46 0 l18 -14 v28z" fill="#c86bff"/><circle r="26" fill="#ff4fa3"/><path d="M-18 -18 q18 18 0 36 M2 -24 q18 24 0 48" stroke="#fff" stroke-width="5" fill="none" opacity=".8"/></g>
+<g transform="translate(1290 330) rotate(25)"><path d="M-40 0 l-16 -12 v24z M40 0 l16 -12 v24z" fill="#9cff57"/><circle r="22" fill="#ffd27a"/><circle r="10" fill="#ff7a1a"/></g>
+<g class="bat "><g transform="translate(0 170) scale(1.1)"><path class="wing" d="M0 0 q-20 -22 -46 -10 q12 4 10 14 q-8 -6 -18 0 q14 2 16 14 q18 -12 38 -2 q20 -10 38 2 q2 -12 16 -14 q-10 -6 -18 0 q-2 -10 10 -14 q-26 -12 -46 10z" fill="#4a1a66"/><circle cx="-5" cy="2" r="2" fill="#ffd27a"/><circle cx="5" cy="2" r="2" fill="#ffd27a"/></g></g><g class="bat bat2"><g transform="translate(0 290) scale(0.8)"><path class="wing" d="M0 0 q-20 -22 -46 -10 q12 4 10 14 q-8 -6 -18 0 q14 2 16 14 q18 -12 38 -2 q20 -10 38 2 q2 -12 16 -14 q-10 -6 -18 0 q-2 -10 10 -14 q-26 -12 -46 10z" fill="#5e2380"/><circle cx="-5" cy="2" r="2" fill="#ffd27a"/><circle cx="5" cy="2" r="2" fill="#ffd27a"/></g></g><g class="bat bat3"><g transform="translate(0 110) scale(0.6)"><path class="wing" d="M0 0 q-20 -22 -46 -10 q12 4 10 14 q-8 -6 -18 0 q14 2 16 14 q18 -12 38 -2 q20 -10 38 2 q2 -12 16 -14 q-10 -6 -18 0 q-2 -10 10 -14 q-26 -12 -46 10z" fill="#4a1a66"/><circle cx="-5" cy="2" r="2" fill="#ffd27a"/><circle cx="5" cy="2" r="2" fill="#ffd27a"/></g></g>
+</svg>
+<h1>Fright Fued!</h1>
+<p>Click or press any key</p>
+</div>
+<script>
+(function(){
+  var el=document.getElementById("splash"), done=false;
+  function hide(e){
+    if(done) return; done=true;
+    if(e&&e.type==="keydown"){e.preventDefault();e.stopImmediatePropagation();}
+    el.classList.add("fade");
+    document.removeEventListener("keydown",hide,true);
+    setTimeout(function(){el.remove();},800);
+  }
+  el.addEventListener("click",hide);
+  document.addEventListener("keydown",hide,true);
+  setTimeout(hide,3500);
+})();
+</script>
 
 <header>
   <h1 class="logo">Fright Feud</h1>
