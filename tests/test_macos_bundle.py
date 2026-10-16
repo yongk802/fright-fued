@@ -25,6 +25,15 @@ def builder():
 
 
 class BundleTests(unittest.TestCase):
+    def test_real_payload_includes_phone_service_and_browser_assets(self):
+        with tempfile.TemporaryDirectory() as folder:
+            resources = Path(folder)
+            hashes = builder().copy_payload(resources)
+            self.assertIn('phone_server.py', hashes)
+            self.assertIn('phone_launch.py', hashes)
+            self.assertIn('game/assets/phone-board.js', hashes)
+            self.assertIn('game/assets/phone-host.html', hashes)
+
     def test_checksum_rejects_modified_download(self):
         build = builder()
         with tempfile.TemporaryDirectory() as folder:
@@ -134,6 +143,12 @@ class BundleTests(unittest.TestCase):
 
 @unittest.skipUnless(sys.platform == 'darwin', 'requires macOS AppKit compiler')
 class NativeURLTests(unittest.TestCase):
+    def test_allows_only_exact_phone_board_fragment(self):
+        for fragment in ('ff_board=abc_123-XYZ', 'ff_board=abc&evil=true', 'ff_board=', 'ff_board=abc%0A'):
+            result = subprocess.run([str(self.binary), '--validate-url',
+                                     'http://127.0.0.1:19990/apps/fright-feud/#' + fragment], capture_output=True)
+            self.assertEqual(result.returncode, 0 if fragment == 'ff_board=abc_123-XYZ' else 1)
+
     @classmethod
     def setUpClass(cls):
         cls.folder = tempfile.TemporaryDirectory()

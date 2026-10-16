@@ -438,6 +438,22 @@ def _ensure_relay(engine_port: int, resources: Path, support: Path, metadata: di
 
 def _ready(engine_url: str, engine_port: int, pid: int | None, reused: bool, installed: bool,
            resources: Path, support: Path, metadata: dict, home: Path, timeout: float, status) -> dict:
+    if (resources / 'phone_launch.py').is_file() and (resources / 'phone_server.py').is_file():
+        import importlib.util
+        durable = _durable_resources(resources, support, metadata, status)
+        spec = importlib.util.spec_from_file_location('fright_feud_phone_launch', durable / 'phone_launch.py')
+        phone = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(phone)
+        if phone.phone_supported(engine_port):
+            status('Preparing the game and phone connection…')
+            try:
+                ready = phone.ensure_phone(engine_port, durable / f'runtimes/{_architecture()}/python/bin/python3.12',
+                                           durable / 'phone_server.py', support, timeout)
+            except (OSError, ValueError, RuntimeError) as error:
+                raise LauncherError(str(error)) from error
+            return {'url': ready['url'], 'reused_engine': reused, 'installed_game': installed,
+                    'pid': pid, 'engine_port': engine_port, 'relay_pid': ready['pid']}
+        status('Keeping your installed game. Use the Desktop shortcut to update it for phone hosting.')
     relay_port, relay_pid = _ensure_relay(engine_port, resources, support, metadata, home, timeout, status)
     fragment = urlsplit(engine_url).fragment
     url = f"http://127.0.0.1:{relay_port}/apps/{GAME_ID}/" + (f"#{fragment}" if fragment else "")

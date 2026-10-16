@@ -66,6 +66,7 @@ def servers():
     engine = ThreadingHTTPServer(('127.0.0.1', 0), Engine)
     proxy = phone.make_server(engine.server_port, nonce=NONCE)
     proxy.lan_addresses = ['192.168.1.9']
+    proxy.address_source = lambda: proxy.lan_addresses
     proxy.clock = lambda: 100.
     for server in (engine, proxy):
         Thread(target=server.serve_forever, kwargs={'poll_interval': .01}, daemon=True).start()
@@ -115,8 +116,58 @@ def host_token(proxy):
     return value['host_token']
 
 
+def test_reopening_pairing_refreshes_changed_wifi_addresses(servers):
+    _, proxy, _ = servers
+    proxy.address_source = lambda: ['192.168.2.14']
+    status, info = api(proxy, '/phone/info')
+    assert status == 200
+    assert info['host_urls'][0].startswith(f'http://192.168.2.14:{proxy.server_port}/phone/#')
+    assert request(proxy, '/phone/', headers={'Host': f'192.168.2.14:{proxy.server_port}'})[0] == 200
+    assert request(proxy, '/phone/', headers={'Host': f'192.168.1.9:{proxy.server_port}'})[0] == 403
+
+
 def command(proxy, token, identifier='command_1', action='question', args=None):
-    return api(proxy, '/phone/command', 'POST', {'id': identifier, 'action': action, 'args': args or {}}, token)
+    body = {'id': identifier, 'action': action, 'args': args or {}}
+    if action == 'bonusSet':
+        body['generation'] = getattr(proxy, 'generation', 0)
+    return api(proxy, '/phone/command', 'POST', body, token)
+
+
+def test_clear_fences_late_bonus_save_even_before_board_acknowledges_reset(servers):
+    _, proxy, _ = servers
+    token, lease = host_token(proxy), claim(proxy)
+    sync(proxy, lease)
+    status, initial = api(proxy, '/phone/state', token=token)
+    assert status == 200
+    assert initial.get('generation') == 0
+    stale = {'id': 'held-save', 'action': 'bonusSet',
+             'args': {'p': 0, 'i': 0, 'text': 'Stale answer', 'pts': 45}, 'generation': 0}
+    assert command(proxy, token, identifier='clear', action='bonusReset')[1]['generation'] == 1
+    assert api(proxy, '/phone/command', 'POST', stale, token)[0] == 400
+    commands = sync(proxy, lease)[1]['commands']
+    assert [entry['action'] for entry in commands] == ['bonusReset']
+    assert command(proxy, token, identifier='fresh-save', action='bonusSet',
+                   args={'p': 0, 'i': 0, 'text': 'Fresh answer', 'pts': 2})[0] == 200
+
+
+def test_start_and_clear_drop_queued_old_bonus_edits_and_missing_generation(servers):
+    _, proxy, _ = servers
+    token, lease = host_token(proxy), claim(proxy)
+    sync(proxy, lease)
+    args = {'p': 0, 'i': 0, 'text': 'Old answer', 'pts': 45}
+    assert command(proxy, token, identifier='old-save', action='bonusSet', args=args)[0] == 200
+    assert command(proxy, token, identifier='start', action='start', args={'names': ['A', 'B']})[0] == 200
+    assert [entry['action'] for entry in sync(proxy, lease)[1]['commands']] == ['start']
+    assert api(proxy, '/phone/command', 'POST', {'id': 'no-generation', 'action': 'bonusSet', 'args': args}, token)[0] == 400
+
+
+def test_retrying_reset_id_does_not_advance_generation_twice(servers):
+    _, proxy, _ = servers
+    token, lease = host_token(proxy), claim(proxy)
+    sync(proxy, lease)
+    first = command(proxy, token, identifier='same-reset', action='bonusReset')
+    repeated = command(proxy, token, identifier='same-reset', action='bonusReset')
+    assert first[1].get('generation') == repeated[1].get('generation') == 1
 
 
 def test_health_and_pairing_info_are_local_nonce_protected(servers):
@@ -202,7 +253,7 @@ def test_claim_sync_dedup_ack_and_refresh_recovery(servers):
     assert sync(proxy, lease, ack=['command_1'])[1]['commands'] == []
     assert command(proxy, token)[0] == 200
     assert sync(proxy, lease)[1]['commands'] == []
-    assert api(proxy, '/phone/state', token=token)[1] == {'state': snapshot(), 'board_connected': True}
+    assert api(proxy, '/phone/state', token=token)[1] == {'state': snapshot(), 'board_connected': True, 'generation': 0}
     status, replacement = api(proxy, '/phone/claim', 'POST', {})
     assert replacement['state'] == snapshot()
     assert replacement['lease'] != lease

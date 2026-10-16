@@ -22,3 +22,11 @@ appearance without runtime network requests.
 
 Game sound effects are synthesized with the browser's Web Audio API; no audio
 recordings are bundled. The supplied game has not been assigned a new license.
+
+## QR Code Generator
+
+- Project: https://github.com/kazuhikoarase/qrcode-generator
+- Pinned source commit: `83b7e8fe3fddd3b0368dbafd6ce56995bd25e3c8`.
+- Unmodified JavaScript: `assets/vendor/qrcode.js` (upstream `js/dist/qrcode.js`).
+- MIT license reproduced in `assets/vendor/qrcode-LICENSE.txt`.
+- Used locally to generate phone pairing codes; no online QR service is used.

@@ -50,9 +50,13 @@ Board-only endpoints require loopback peer and `Authorization: Bearer NONCE`:
 
 Phone endpoints use `Authorization: Bearer HOST_TOKEN`:
 
-* GET `/phone/state`: `{state:object|null,board_connected:boolean}`; updates phone
+* GET `/phone/state`: `{state:object|null,board_connected:boolean,generation:int}`; updates phone
   heartbeat. Board considered disconnected after five seconds.
-* POST `/phone/command` `{id:string,action:string,args:object}`: `{accepted:true}`.
+* POST `/phone/command` `{id:string,action:string,args:object,generation?:int}`:
+  `{accepted:true,generation:int}`. `bonusSet` requires the generation captured
+  when the edit is enqueued. Accepting clear/start advances it, fences delayed
+  earlier edits, and removes old queued saves. Stable-ID retries do not advance
+  it twice. Other action payloads remain unchanged.
   Deduplicate repeated IDs, reject disconnected boards with 409, invalid input
   with 400, unauthenticated with 403, bounded queue exhaustion with 429.
 
@@ -82,6 +86,10 @@ phone confirmation. No arbitrary selectors, JavaScript, URLs, or file operations
 
 Phone UI uses large touch targets, readable responsive layout, live status and
 disabled controls on disconnection. It preserves active text input while polling.
+Submissions use one bounded FIFO with frozen arguments, short expiry and same-ID
+retry; loss drops queued intent. Destructive clears drop obsolete queued saves.
+The generation fence also rejects an earlier request that arrives after a clear
+or after the phone reloads, so connection recovery cannot resurrect old input.
 The laptop hides answer controls after pairing; only revealed answer faces remain
 visible. QR generation is bundled and licensed, with no external service.
 

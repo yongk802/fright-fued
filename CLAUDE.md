@@ -1,6 +1,7 @@
 # Working on Fright Feud
 
-This repository is a complete static App Engine app. Read README.md first.
+This repository is a complete App Engine game with an optional paired-phone
+companion. Read README.md first.
 The repository name is `fright-fued`; the app ID is `fright-feud`. Keep that ID
 stable so App Engine installations continue to identify the same app.
 
@@ -14,6 +15,13 @@ stable so App Engine installations continue to identify the same app.
 - `desktop/relay.py`: app-only numeric-loopback transport for older Safari;
   preserve its separate origin and strict route/Host/method limits. Never expose
   engine controls or other apps through it.
+- `desktop/phone_server.py`: same-Wi-Fi private host transport. Only fixed phone
+  assets are public; board APIs are loopback-only and authenticated. Preserve
+  token auth, actual-interface Host checks, Origin checks and action bounds.
+- `desktop/phone_launch.py`, `scripts/launch_phone.py`: durable companion lifecycle
+  for both new Mac bundles and existing signed apps using the Desktop shortcut.
+- `assets/phone-board.js`: game snapshot/command adapter and QR pairing UI.
+- `assets/phone-host.html`, `phone-host.js`, `phone-host.css`: mobile host UI.
 - `scripts/build_macos.py`: builds `dist/Fright-Feud-macOS.zip`, containing a
   universal `Fright Feud.app` with Python, App Engine, and the game bundled.
 - `tests/test_desktop_launcher.py` and `tests/test_macos_bundle.py`: launcher and
@@ -24,7 +32,8 @@ Preserve offline play: use relative asset URLs and bundle dependencies. Do not a
 CDN imports or npm/build requirements without an explicit request. Preserve the
 separate host window, audience-hidden answers, popup sender checks, and older
 Safari fullscreen fallback. Host windows communicate only with the actual opener
-through postMessage. Fullscreen failure must be handled without an unhandled error.
+through postMessage; paired phones use the authenticated game-only companion.
+Fullscreen failure must be handled without an unhandled error.
 
 The user's target Mac runs macOS 12.6. Do cloud development in Claude Code on the
 web; do not require them to install the Claude CLI. Their installation updates
@@ -35,6 +44,7 @@ Run focused browser checks when changing integration behavior:
 
 ```sh
 python3 tests/check_integration_seams.py
+python3 -m pytest tests/test_phone_server.py tests/test_phone_launch.py tests/test_phone_entrypoint.py
 ```
 
 Install Playwright in the development environment if needed; it is not a runtime
@@ -67,3 +77,10 @@ user's engine, touch Atrium, or write test apps into the real user's app roots.
 Preserve edited installed game files and unrelated ports/directories. Keep first
 open Gatekeeper approval explicit: do not bypass quarantine/security checks or
 claim notarization without an actual Developer ID/notarized build.
+
+For phone changes, exercise two independent browser contexts with
+`tests/check_phone_host.py` against a disposable real App Engine and companion.
+Check 390px phone layout and the contestant board screenshots. Do not claim a
+physical iPhone or macOS 12.6 Safari test from Chromium emulation alone. Preserve
+offline QR generation and vendor license. Never put the engine's state token
+in a phone URL or expose the engine API through the LAN companion.

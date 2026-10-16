@@ -12,7 +12,7 @@ func gameURL(_ raw: String) -> URL? {
           parts.percentEncodedPath == "/apps/fright-feud/",
           parts.query == nil else { return nil }
     if let fragment = parts.percentEncodedFragment {
-        guard fragment.range(of: "^atrium_state_token=[A-Za-z0-9_-]+$", options: .regularExpression) != nil else { return nil }
+        guard fragment.range(of: "^(atrium_state_token|ff_board)=[A-Za-z0-9_-]+$", options: .regularExpression) != nil else { return nil }
     }
     return parts.url
 }

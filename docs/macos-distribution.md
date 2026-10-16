@@ -18,9 +18,9 @@ the included engine is started with loopback binding and durable per-user state.
 Occupied ports are checked by engine identity; unrelated listeners are left alone.
 
 The game opens directly at a numeric `127.0.0.1` address in the default browser.
-An app-scoped loopback relay fetches only Fright Feud assets from the engine's
+An app-scoped transport fetches only Fright Feud assets from the engine's
 isolated app origin. This handles [older Safari's localhost-subdomain issue](https://bugs.webkit.org/show_bug.cgi?id=160504)
-without DNS/hosts-file edits. The relay uses a separate port/origin and cannot
+without DNS/hosts-file edits. The transport uses a separate port/origin and cannot
 forward engine controls, other apps, or external redirects. The game is still
 served by App Engine. Reopening the launcher
 uses the existing game and engine; the launcher does not overwrite edited game
@@ -28,9 +28,35 @@ files. Versioned resource copies allow the downloaded ZIP/folder to be removed
 after installation without breaking subsequent launches.
 
 The native progress window exits after opening the game. The engine runs in the
-background for later opens, without a login startup job. Game state is in browser
-memory and resets on reload, as before. Files and logs for the launcher's own
+background for later opens, without a login startup job. Local play resets on
+reload; paired play restores the companion's latest in-memory snapshot with the
+timer paused. Files and logs for the launcher's own
 installation live under `~/Library/Application Support/Fright Feud`.
+
+## Paired iPhone host (version 1.2)
+
+The new companion listens on IPv4 LAN and serves a private touch host in Safari.
+Click **Connect phone** and scan the locally generated QR on the same Wi-Fi.
+The laptop hides local host controls after pairing. Only fixed phone UI assets
+are public: game state and commands require the pairing bearer; board APIs
+require loopback plus a separate nonce. Engine administration, other apps,
+external redirects, and engine session credentials are never forwarded.
+
+The app remains useful without internet. macOS may ask to allow the bundled
+Python's incoming connections; a guest network that isolates clients will not
+work. Phone browser backgrounding/locking suspends updates; returning to Safari
+reconnects. The pairing URL is a host capability: keep it private and use
+Disconnect phone to revoke it. This trusted-LAN protocol uses HTTP, not TLS.
+
+Existing signed version 1.1 apps do not need to be modified. The updated Desktop
+shortcut uses the installed bundled Python, runs the signed coordinator headless,
+and starts the source-updated companion from a durable content-hashed copy.
+The app's signature and Gatekeeper settings remain intact. Different helper
+versions reuse their own authenticated process, rather than restarting one on
+every click. A new direct bundle uses the same companion automatically when its
+installed game supports it. If an older/edited installed game lacks phone assets,
+the direct app preserves it and falls back to local play; use the Desktop shortcut
+to explicitly update that game from GitHub.
 
 ## macOS compatibility and first-open approval
 
@@ -93,3 +119,13 @@ them, or copy updated game files into the game folder of your active App Engine.
 The launcher preserves existing game source, so edited installations are not
 silently replaced by a newer bundle. A GitHub cloud session has no direct access
 to your local running game or files unless you separately connect such access.
+
+For this user's Desktop setup, changes pushed to main arrive through the existing
+shortcut. `scripts/mac-update.sh` backs up earlier files and installs `assets/`
+alongside index.html, app.json and fonts. Start a new game after an update.
+
+Run `python3 tests/check_phone_host.py --engine-url http://127.0.0.1:TEST_PORT
+--screenshots /path/to/evidence` against an isolated engine. Its independent
+laptop and 390px phone contexts check private inputs, actions, refresh recovery,
+disconnection and lease replacement. This is browser emulation, not a physical
+iPhone or macOS 12.6 Safari qualification.

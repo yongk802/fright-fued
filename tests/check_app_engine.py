@@ -37,14 +37,16 @@ def main():
         context.on("page", lambda page: page.on("pageerror", lambda error: errors.append(str(error))))
         page = context.new_page()
         page.goto(args.game_url or args.url)
-        page.wait_for_load_state("networkidle")
+        # A paired board polls every 400ms, so it deliberately never becomes
+        # network-idle. Wait for the actual UI and fonts rather than quiescence.
+        page.wait_for_load_state("domcontentloaded")
         if args.game_url:
             game = page
         else:
             page.locator('button[data-app-id="fright-feud"]').click()
             game = page.frame_locator('iframe[title="Fright Feud"]')
         expect(game.locator("#startBtn")).to_be_visible()
-        page.wait_for_load_state("networkidle")
+        game.locator('body').evaluate('el => el.ownerDocument.fonts.ready')
         page.screenshot(path=str(args.screenshots / "setup.png"), full_page=True)
         game.locator("#t1").fill("The Witches")
         game.locator("#t2").fill("The Werewolves")

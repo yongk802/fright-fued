@@ -121,14 +121,18 @@ def audit_macos_binaries(root: Path):
 
 def copy_payload(resources: Path, source: Path = ROOT):
     """Stage launcher, app-scoped relay, and game with content-addressed metadata."""
-    for name in ('launcher.py', 'relay.py'):
+    helpers = ['launcher.py', 'relay.py']
+    helpers.extend(name for name in ('phone_server.py', 'phone_launch.py') if (source / 'desktop' / name).is_file())
+    for name in helpers:
         shutil.copy2(source / 'desktop' / name, resources / name)
     game = resources / 'game'
     game.mkdir()
     for name in ('app.json', 'index.html', 'THIRD-PARTY-NOTICES.md'):
         shutil.copy2(source / name, game / name)
     shutil.copytree(source / 'fonts', game / 'fonts')
-    payload = [resources / 'launcher.py', resources / 'relay.py']
+    if (source / 'assets').is_dir():
+        shutil.copytree(source / 'assets', game / 'assets')
+    payload = [resources / name for name in helpers]
     payload.extend(path for path in game.rglob('*') if path.is_file())
     return {str(path.relative_to(resources)): hashlib.sha256(path.read_bytes()).hexdigest()
             for path in sorted(payload)}

@@ -9,7 +9,7 @@ AI model, account, or internet connection needed to play.
 
 ## One-click Mac app — App Engine included
 
-Download **[Fright-Feud-macOS.zip](https://github.com/yongk802/fright-fued/releases/download/v1.1.0/Fright-Feud-macOS.zip)**,
+Download **[Fright-Feud-macOS.zip](https://github.com/yongk802/fright-fued/releases/download/v1.2.0/Fright-Feud-macOS.zip)**,
 unzip it in Finder, and open **Fright Feud.app**. It supports Intel and Apple
 Silicon Macs running macOS 12.6 or later. Python, App Engine, their dependencies,
 and the game are bundled, so the target Mac needs no developer tools or setup
@@ -82,6 +82,38 @@ take precedence in the engine catalog.
 
 ## Play
 
+### Use your iPhone as the host
+
+1. Connect the Mac and iPhone to the same Wi-Fi. Open Fright Feud using the
+   Desktop shortcut (which gets the latest source), or a fresh version 1.2 Mac install.
+2. Click **Connect phone** on the laptop, then scan the QR code with the iPhone
+   Camera and open it in Safari. A link is also provided for manual entry.
+3. The phone shows private answers and touch controls. Enter team names there,
+   start the game, and use the phone for reveals, scores, strikes and rounds.
+   The laptop automatically hides the host controls and pairing QR once paired.
+4. For Fast Fright, enter answers and points on the phone, then tap **Reveal**
+   when ready. Unrevealed input stays off the contestant board.
+
+Keep Safari open on the phone and keep the Mac awake during play. After a brief
+Wi-Fi interruption or phone refresh, the phone reconnects to the current game.
+Reloading the paired laptop restores the most recent in-memory snapshot with
+the timer paused. Restarting the Mac or ending the companion clears that session.
+
+If macOS asks to allow incoming network connections for the bundled Python,
+allow it on your trusted network. Guest Wi-Fi that isolates devices cannot pair;
+use a network that allows the devices to communicate. Internet is not needed
+for pairing or play. Keep the private QR/link for the host: anyone who has it on
+that network can control the game. **Disconnect phone** revokes that link.
+The helper exposes game messages only, never App Engine's administration.
+
+An older installed Mac app gains this feature through the updated Desktop
+shortcut without changing its signed app bundle. If Connect phone says the
+companion is unavailable, close the game and launch the Desktop shortcut again.
+The static App Engine package retains local/popup play; cross-device hosting
+also requires the companion service from the Mac distribution or source.
+
+### Play locally
+
 Enter the two team names and choose **Start the game**. Reveal answers by clicking
 tiles or pressing **1–8**. Use **Q/P** for buzzers, **B** to reset buzzers, **X** for
 a strike on the active team, and arrow keys to change rounds. Award the pot to a
@@ -99,8 +131,9 @@ If the browser disallows it inside a frame, use the browser's full-screen contro
 The app declares the sandbox permissions needed for the host window and score
 dialogs, plus fullscreen permission. Use App Engine's normal isolated app origins.
 
-Game state is held in memory, as in the original game. **Reloading or closing the
-game resets it.** Changing rounds clears that round's board but retains team scores.
+Game state is held in memory. In local/popup play, reloading resets it. Paired
+play keeps its most recent snapshot in the companion until that service exits.
+Changing rounds clears that round's board but retains team scores.
 Survey points are made up for party play, not actual survey results.
 
 ## Develop with Claude Code on the web (no local Claude installation)
@@ -109,18 +142,15 @@ Survey points are made up for party play, not actual survey results.
    access to <https://github.com/yongk802/fright-fued> and select that repository.
 2. Describe the change. For example: “Add five Halloween questions. Preserve the
    App Engine manifest and offline operation. Read CLAUDE.md and rebuild the ZIP.”
-3. Review Claude's diff and pull request, then merge the changes you want.
-4. On the old Mac, download the updated repository using GitHub's **Code → Download
-   ZIP**, or run `git pull --ff-only` from your local checkout if you use Git.
-5. Replace the installed app's files with the updated files, or update the checkout
-   directly if App Engine scans it. Keep `app.json` and `index.html` together at the
-   app root. Close/reopen the game or reload its frame; refresh the catalog if the
-   manifest changed. Start a new game after updating.
+3. Ask Claude to test the change and push it to `main`, following this repository's
+   `update-game` skill. The Desktop shortcut downloads that branch.
+4. Double-click **Fright Feud** on the Mac Desktop to update and launch. Close the
+   old game tab and start a new game after updating. No local Claude CLI needed.
 
 Claude works on a **cloud copy of the GitHub repository**. Installing the app on
 your Mac does not connect Claude to your files or running App Engine. Unpushed
-local edits are invisible to it, and its changes do not automatically appear on
-your Mac. Share screenshots and reproduction steps when a problem only happens
+local edits are invisible to it; launching your Desktop shortcut brings its
+published changes to your Mac. Share screenshots and reproduction steps when a problem only happens
 on your older browser. Web access depends on your Claude plan and organization.
 
 Official references: [Claude Code cloud/web workflow](https://code.claude.com/docs/en/claude-code-on-the-web)

@@ -39,6 +39,12 @@ class Handler(BaseHTTPRequestHandler):
             data = [{"id": "fright-feud", "url": "http://fright-feud.localhost:%s/apps/fright-feud/#atrium_state_token=local" % self.server.server_port}] if (apps / "fright-feud/app.json").is_file() else []
         elif self.path == "/api/app-engine/studio/roots": data = [{"root": str(apps), "inspect": True, "create": True, "write": True}]
         elif self.path == "/environment": data = {k:v for k,v in os.environ.items() if k.startswith("APP_ENGINE_")}
+        elif self.path.startswith('/apps/fright-feud/'):
+            relative = self.path[len('/apps/fright-feud/'):] or 'index.html'
+            path = apps / 'fright-feud' / relative
+            if not path.is_file(): self.send_error(404); return
+            payload = path.read_bytes()
+            self.send_response(200); self.send_header('Content-Type', 'text/javascript' if path.suffix == '.js' else 'text/html'); self.end_headers(); self.wfile.write(payload); return
         else: self.send_error(404); return
         payload = json.dumps(data).encode()
         self.send_response(200); self.send_header("Content-Length", str(len(payload))); self.end_headers(); self.wfile.write(payload)
@@ -184,6 +190,34 @@ def test_fresh_launch_installs_durable_resources_and_reuses_engine(bundle, start
     assert second["pid"] == first["pid"]
     assert second["relay_pid"] == first["relay_pid"]
     assert len(list((home / "Library/Application Support/Fright Feud").glob("releases/*/engine/engine.py"))) == 1
+
+
+def test_phone_capable_bundle_opens_paired_board_and_reuses_service(bundle, started_engines):
+    import runpy
+    _, resources, _ = bundle
+    fake = runpy.run_path(str(REPO / 'tests/test_phone_launch.py'))['FAKE_HELPER']
+    (resources / 'phone_server.py').write_text(fake)
+    shutil.copy2(REPO / 'desktop/phone_launch.py', resources / 'phone_launch.py')
+    (resources / 'game/index.html').write_text('<script src="assets/phone-board.js"></script>')
+    (resources / 'game/assets').mkdir()
+    (resources / 'game/assets/phone-board.js').write_text('// board adapter')
+    (resources / 'game/assets/phone-host.html').write_text('<title>Phone host</title>')
+    first = run_launch(launcher(), bundle, started_engines)
+    assert '#ff_board=' in first['url']
+    second = run_launch(launcher(), bundle, started_engines)
+    assert second['url'] == first['url']
+    assert second['relay_pid'] == first['relay_pid']
+
+
+def test_phone_bundle_reusing_older_game_keeps_local_controls_and_files(bundle, started_engines):
+    import runpy
+    _, resources, home = bundle
+    fake = runpy.run_path(str(REPO / 'tests/test_phone_launch.py'))['FAKE_HELPER']
+    (resources / 'phone_server.py').write_text(fake)
+    shutil.copy2(REPO / 'desktop/phone_launch.py', resources / 'phone_launch.py')
+    first = run_launch(launcher(), bundle, started_engines)
+    assert '#ff_board=' not in first['url']
+    assert (home / 'Library/Application Support/Fright Feud/apps/fright-feud/index.html').read_text() == 'bundled game'
 
 
 def test_existing_engine_game_is_used_without_copying_game(bundle, started_engines):

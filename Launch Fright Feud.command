@@ -8,7 +8,7 @@
 FOLDER="$(cd "$(dirname "$0")" && pwd)"
 APP="$HOME/Applications/Fright Feud.app"
 BUNDLE_ID="com.yongk802.fright-feud"
-RELEASE="https://github.com/yongk802/fright-fued/releases/download/v1.1.0/Fright-Feud-macOS.zip"
+RELEASE="https://github.com/yongk802/fright-fued/releases/download/v1.2.0/Fright-Feud-macOS.zip"
 
 finish() { echo; read -r -p "Press Return to close." _; exit 0; }
 
@@ -32,8 +32,18 @@ echo
 #    every launch shows the newest files.
 if [ -d "$APP" ]; then
   echo "Opening Fright Feud…"
-  open "$APP"
-  sleep 2
+  ARCH="$(uname -m)"
+  PYTHON="$APP/Contents/Resources/runtimes/$ARCH/python/bin/python3.12"
+  if [ -x "$PYTHON" ] && [ -f "$FOLDER/scripts/launch_phone.py" ]; then
+    if ! "$PYTHON" -I -B "$FOLDER/scripts/launch_phone.py" --app "$APP"; then
+      echo "The phone connection could not start. Opening the local game instead."
+      open "$APP"
+      finish
+    fi
+  else
+    open "$APP"
+    sleep 2
+  fi
   exit 0
 fi
 

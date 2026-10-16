@@ -133,7 +133,9 @@ def valid_state(state):
 
 
 def valid_command(value, state):
-    if not keys(value, 'id action args') or not isinstance(value['id'], str) or ID.fullmatch(value['id']) is None:
+    shape = keys(value, 'id action args') or keys(value, 'id action args generation')
+    if (not shape or not isinstance(value['id'], str) or ID.fullmatch(value['id']) is None
+            or ('generation' in value and not integer(value['generation'], 0, 2 ** 53 - 1))):
         return False
     action, args = value['action'], value['args']
     if not isinstance(action, str) or not isinstance(args, dict):
@@ -182,6 +184,7 @@ class PhoneServer(ThreadingHTTPServer):
         self.state = None
         self.board_seen = None
         self.host_seen = None
+        self.generation = 0
         self.pending = OrderedDict()
         # Delivery acknowledgements can arrive after the ten-second send queue
         # expires. Retain at most MAX_QUEUE disconnect IDs for the board lease.
@@ -190,7 +193,8 @@ class PhoneServer(ThreadingHTTPServer):
         self.lock = RLock()
         self.clock = time.monotonic
         self.is_loopback = loopback
-        self.lan_addresses = local_addresses()
+        self.address_source = local_addresses
+        self.lan_addresses = self.address_source()
         super().__init__(('0.0.0.0', listen_port), PhoneHandler)
 
     def connected(self, heartbeat):
@@ -307,6 +311,9 @@ class PhoneHandler(BaseHTTPRequestHandler):
             return self.json(200, {'name': 'fright-feud-phone', 'engine_port': server.engine_port,
                 'nonce': server.nonce, 'version': 1, 'source_sha256': SOURCE_SHA256})
         if path == '/phone/info':
+            # A durable service may outlive a Wi-Fi/DHCP change. Refresh on the
+            # local pairing action, never on unauthenticated network requests.
+            server.lan_addresses = server.address_source()
             return self.json(200, {'host_urls': [f'http://{host}:{server.server_port}/phone/#{server.host_token}' for host in server.lan_addresses],
                 'host_token': server.host_token, 'host_connected': server.connected(server.host_seen)})
         if path == '/phone/claim':
@@ -336,29 +343,37 @@ class PhoneHandler(BaseHTTPRequestHandler):
                 server.seen.clear()
             server.state = body['state']
             server.board_seen = now
-            server.pending = OrderedDict((key, item) for key, item in server.pending.items() if valid_command(item[0], server.state))
+            server.pending = OrderedDict((key, item) for key, item in server.pending.items()
+                if valid_command(item[0], server.state)
+                and (item[0]['action'] != 'bonusSet' or item[0].get('generation') == server.generation))
             server.delivered_disconnects.update(key for key, item in server.pending.items() if item[0]['action'] == 'disconnect')
             return self.json(200, {'commands': [item[0] for item in server.pending.values()], 'host_connected': server.connected(server.host_seen)})
         if path == '/phone/state':
             server.host_seen = now
-            return self.json(200, {'state': server.state, 'board_connected': server.connected(server.board_seen)})
+            return self.json(200, {'state': server.state, 'board_connected': server.connected(server.board_seen),
+                'generation': server.generation})
         if not valid_command(body, server.state):
             return self.reject(400, 'Invalid or stale action')
+        if body['action'] == 'bonusSet' and body.get('generation') != server.generation:
+            return self.reject(400, 'Bonus input belongs to an earlier board')
         if not server.connected(server.board_seen):
             return self.reject(409, 'Board disconnected')
         server.host_seen = now
         identifier = body['id']
         if identifier in server.seen or identifier in server.delivered_disconnects:
-            return self.json(200, {'accepted': True})
+            return self.json(200, {'accepted': True, 'generation': server.generation})
         if body['action'] == 'disconnect':
             outstanding = server.delivered_disconnects | {key for key, item in server.pending.items() if item[0]['action'] == 'disconnect'}
             if len(outstanding) >= MAX_QUEUE:
                 return self.reject(429, 'Disconnect acknowledgement capacity is full')
         if len(server.pending) >= MAX_QUEUE or len(server.seen) >= MAX_IDS:
             return self.reject(429, 'Command queue is full')
+        if body['action'] in ('bonusReset', 'start'):
+            # Fence delayed edits before the board consumes the clear command.
+            server.generation += 1
         server.pending[identifier] = (body, now)
         server.seen[identifier] = now
-        return self.json(200, {'accepted': True})
+        return self.json(200, {'accepted': True, 'generation': server.generation})
 
     def asset(self, path):
         connection = HTTPConnection('127.0.0.1', self.server.engine_port, timeout=8)
