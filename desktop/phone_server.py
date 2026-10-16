@@ -183,6 +183,9 @@ class PhoneServer(ThreadingHTTPServer):
         self.board_seen = None
         self.host_seen = None
         self.pending = OrderedDict()
+        # Delivery acknowledgements can arrive after the ten-second send queue
+        # expires. Retain at most MAX_QUEUE disconnect IDs for the board lease.
+        self.delivered_disconnects = set()
         self.seen = OrderedDict()
         self.lock = RLock()
         self.clock = time.monotonic
@@ -312,6 +315,7 @@ class PhoneHandler(BaseHTTPRequestHandler):
             server.lease = secrets.token_urlsafe(24)
             server.board_seen = None
             server.pending.clear()
+            server.delivered_disconnects.clear()
             return self.json(200, {'lease': server.lease, 'state': server.state})
         if path == '/phone/sync':
             if not keys(body, 'lease state ack') or not isinstance(body['lease'], str):
@@ -320,17 +324,20 @@ class PhoneHandler(BaseHTTPRequestHandler):
                 return self.reject(409, 'Board lease replaced')
             if not valid_state(body['state']) or not isinstance(body['ack'], list) or len(body['ack']) > MAX_QUEUE or any(not isinstance(i, str) or ID.fullmatch(i) is None for i in body['ack']):
                 return self.reject(400, 'Invalid snapshot or acknowledgements')
-            disconnect = any(server.pending.get(i, ({},))[0].get('action') == 'disconnect' for i in body['ack'])
+            disconnect = any(i in server.delivered_disconnects for i in body['ack'])
             for identifier in body['ack']:
                 server.pending.pop(identifier, None)
+                server.delivered_disconnects.discard(identifier)
             if disconnect:
                 server.host_token = secrets.token_urlsafe(32)
                 server.host_seen = None
                 server.pending.clear()
+                server.delivered_disconnects.clear()
                 server.seen.clear()
             server.state = body['state']
             server.board_seen = now
             server.pending = OrderedDict((key, item) for key, item in server.pending.items() if valid_command(item[0], server.state))
+            server.delivered_disconnects.update(key for key, item in server.pending.items() if item[0]['action'] == 'disconnect')
             return self.json(200, {'commands': [item[0] for item in server.pending.values()], 'host_connected': server.connected(server.host_seen)})
         if path == '/phone/state':
             server.host_seen = now
@@ -341,8 +348,12 @@ class PhoneHandler(BaseHTTPRequestHandler):
             return self.reject(409, 'Board disconnected')
         server.host_seen = now
         identifier = body['id']
-        if identifier in server.seen:
+        if identifier in server.seen or identifier in server.delivered_disconnects:
             return self.json(200, {'accepted': True})
+        if body['action'] == 'disconnect':
+            outstanding = server.delivered_disconnects | {key for key, item in server.pending.items() if item[0]['action'] == 'disconnect'}
+            if len(outstanding) >= MAX_QUEUE:
+                return self.reject(429, 'Disconnect acknowledgement capacity is full')
         if len(server.pending) >= MAX_QUEUE or len(server.seen) >= MAX_IDS:
             return self.reject(429, 'Command queue is full')
         server.pending[identifier] = (body, now)

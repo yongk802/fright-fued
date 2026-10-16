@@ -386,3 +386,58 @@ def test_json_lease_with_unpaired_surrogate_is_rejected(servers):
     _, proxy, _ = servers
     claim(proxy)
     assert sync(proxy, '\ud800')[0] == 409
+
+
+@pytest.mark.parametrize('ack_time', [111., 171.])
+def test_delivered_disconnect_late_ack_still_revokes_phone_bearer(servers, ack_time):
+    _, proxy, _ = servers
+    token = host_token(proxy)
+    lease = claim(proxy)
+    sync(proxy, lease)
+    assert command(proxy, token, action='disconnect')[0] == 200
+    assert sync(proxy, lease)[1]['commands'][0]['action'] == 'disconnect'
+    proxy.clock = lambda: ack_time
+    assert sync(proxy, lease, ack=['command_1'])[0] == 200
+    assert api(proxy, '/phone/state', token=token)[0] == 403
+    assert host_token(proxy) != token
+
+
+def test_expired_undelivered_disconnect_ack_does_not_revoke_phone(servers):
+    _, proxy, _ = servers
+    token = host_token(proxy)
+    lease = claim(proxy)
+    sync(proxy, lease)
+    assert command(proxy, token, action='disconnect')[0] == 200
+    proxy.clock = lambda: 111.
+    assert sync(proxy, lease, ack=['command_1'])[1]['commands'] == []
+    assert api(proxy, '/phone/state', token=token)[0] == 200
+    assert host_token(proxy) == token
+
+
+def test_superseding_board_does_not_accept_previous_disconnect_delivery_ack(servers):
+    _, proxy, _ = servers
+    token = host_token(proxy)
+    lease = claim(proxy)
+    sync(proxy, lease)
+    assert command(proxy, token, action='disconnect')[0] == 200
+    assert sync(proxy, lease)[1]['commands'][0]['action'] == 'disconnect'
+    replacement = claim(proxy)
+    assert sync(proxy, replacement, ack=['command_1'])[0] == 200
+    assert api(proxy, '/phone/state', token=token)[0] == 200
+
+
+def test_unacknowledged_disconnect_deliveries_have_a_bounded_capacity(servers):
+    _, proxy, _ = servers
+    token = host_token(proxy)
+    lease = claim(proxy)
+    for index in range(64):
+        proxy.clock = lambda index=index: 100. + index * 11
+        sync(proxy, lease)
+        assert command(proxy, token, identifier=f'disconnect_{index}', action='disconnect')[0] == 200
+        assert sync(proxy, lease)[1]['commands'][0]['action'] == 'disconnect'
+    proxy.clock = lambda: 1000.
+    sync(proxy, lease)
+    assert command(proxy, token, identifier='too_many', action='disconnect')[0] == 429
+    assert command(proxy, token, identifier='ordinary', action='question')[0] == 200
+    assert sync(proxy, lease, ack=['disconnect_0'])[0] == 200
+    assert api(proxy, '/phone/state', token=token)[0] == 403
