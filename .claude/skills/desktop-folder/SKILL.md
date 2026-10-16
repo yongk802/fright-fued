@@ -43,9 +43,8 @@ Be honest about what was verified: the ZIP was checked in the cloud, not on a Ma
   `~/Library/Application Support/Fright Feud/apps/fright-feud` (or
   `~/git/personal-apps/fright-feud` when it reuses an existing engine). Editing the
   Desktop folder does not change the game.
-- Pushed changes reach the installed game through **Update Fright Feud.command**
-  followed by Cmd-R in the game tab. It replaces `index.html` and `app.json` and
-  keeps backups under `~/Library/Application Support/Fright Feud/backups`.
+- Pushed changes reach the installed game through **Get Latest Updates.command**
+  (in the Desktop folder) followed by Cmd-R in the game tab. It keeps backups under `~/Library/Application Support/Fright Feud/backups`.
 
 ## Desktop folder with launcher and updater (preferred)
 
