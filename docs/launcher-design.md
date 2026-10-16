@@ -33,6 +33,16 @@ and its required frontend/assets), `game/` (app.json/index.html/fonts), and
 `runtimes/{arm64,x86_64}/python/`. Each Python runtime includes its dependencies.
 `bundle.json` identifies app/engine/runtime versions and engine source commit.
 
+`relay.py` supplies an app-scoped numeric-loopback transport for old Safari,
+which cannot reliably resolve `*.localhost` on macOS12. The browser opens
+`http://127.0.0.1:<separate-port>/apps/fright-feud/`; the relay forwards only that
+game's GET/HEAD asset paths to App Engine using its isolated upstream app host.
+Engine control routes, other apps, redirects, path escapes, and foreign Host
+headers are denied. The relay has its own browser origin, preserves the engine's
+origin isolation, and exits after its upstream engine disappears. Neither DNS
+configuration nor engine security settings are changed. Final launch results
+also include `engine_port` and `relay_pid` for lifecycle qualification.
+
 The coordinator serializes installation with a per-user file lock. It probes
 configured/default local engine ports using `/api/engine`; it never terminates
 an existing service or assumes an occupied port is App Engine. A running engine

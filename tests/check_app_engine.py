@@ -16,6 +16,7 @@ from playwright.sync_api import expect, sync_playwright
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", default="http://127.0.0.1:19937")
+    parser.add_argument("--game-url", help="Test the native launcher's direct game address instead of clicking the catalog")
     parser.add_argument("--screenshots", type=Path, default=Path("test-results"))
     args = parser.parse_args()
     args.screenshots.mkdir(parents=True, exist_ok=True)
@@ -35,10 +36,13 @@ def main():
         context.route("**/*", route)
         context.on("page", lambda page: page.on("pageerror", lambda error: errors.append(str(error))))
         page = context.new_page()
-        page.goto(args.url)
+        page.goto(args.game_url or args.url)
         page.wait_for_load_state("networkidle")
-        page.locator('button[data-app-id="fright-feud"]').click()
-        game = page.frame_locator('iframe[title="Fright Feud"]')
+        if args.game_url:
+            game = page
+        else:
+            page.locator('button[data-app-id="fright-feud"]').click()
+            game = page.frame_locator('iframe[title="Fright Feud"]')
         expect(game.locator("#startBtn")).to_be_visible()
         page.wait_for_load_state("networkidle")
         page.screenshot(path=str(args.screenshots / "setup.png"), full_page=True)
@@ -125,7 +129,8 @@ def main():
         expect(game.locator("#timer")).to_have_text("20")
         game.locator("#navGame").click()
         page.set_viewport_size({"width": 390, "height": 844})
-        page.wait_for_function("document.querySelector('#sidebar').getBoundingClientRect().right <= 0")
+        if not args.game_url:
+            page.wait_for_function("document.querySelector('#sidebar').getBoundingClientRect().right <= 0")
         page.screenshot(path=str(args.screenshots / "narrow-game.png"), full_page=True)
         assert frame.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "Game overflows narrow screen"
         assert frame.evaluate("document.fonts.check('16px Creepster') && document.fonts.check('16px Oswald')"), "Local fonts unavailable"

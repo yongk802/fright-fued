@@ -4,12 +4,43 @@ A Halloween survey party game for **App Engine**, with eight main rounds,
 team scores and strikes, keyboard buzzers, synthesized sound effects, a printable
 answer key, and a five-question Fast Fright bonus round with private host controls.
 
-This is a complete static app: all game code and fonts are included. There is no
-npm install, compilation, AI model, account, or internet connection needed to play.
-**App Engine must already be installed and running.** This ZIP is an app package,
-not an installer for App Engine or a double-click executable.
+All game code and fonts are included. There is no npm install, compilation,
+AI model, account, or internet connection needed to play.
 
-## Install the ZIP in App Engine
+## One-click Mac app — App Engine included
+
+Download **[Fright-Feud-macOS.zip](https://github.com/yongk802/fright-fued/releases/download/v1.1.0/Fright-Feud-macOS.zip)**,
+unzip it in Finder, and open **Fright Feud.app**. It supports Intel and Apple
+Silicon Macs running macOS 12.6 or later. Python, App Engine, their dependencies,
+and the game are bundled, so the target Mac needs no developer tools or setup
+downloads.
+
+On first open, the launcher installs its owned copy under
+`~/Applications/Fright Feud.app`. It reuses a compatible local App Engine when
+available and installs Fright Feud into that engine if the game is missing.
+Otherwise it starts the included engine. The game opens directly in your default
+browser. On later opens, it reuses the installation and running engine. Existing
+game files are preserved. It never stops unrelated services or enables login
+autostart.
+
+macOS may require its normal first-open approval for a downloaded app. This build
+is ad-hoc signed, not Developer ID notarized; it does not bypass Gatekeeper or
+change security settings. If approval is needed on macOS 12.6, use Finder's
+normal **Control-click → Open** flow. Component installation is automatic after
+the operating system allows the app to open.
+
+The launcher displays progress and explains startup errors. Its own engine state
+and logs live under `~/Library/Application Support/Fright Feud`. You can remove
+the downloaded copy after the installed app has opened successfully. Close the
+browser when finished; the local engine stays available for the next launch.
+
+See [Mac distribution details](docs/macos-distribution.md) for development,
+verification, and the distinction between the full Mac app and the static ZIP.
+
+## Static ZIP for an existing App Engine
+
+`fright-feud-app-engine.zip` is the smaller, platform-independent app package.
+It requires an existing App Engine and is separate from the complete Mac bundle.
 
 1. Unzip `fright-feud-app-engine.zip`. On macOS, double-click it in Finder.
 2. Find the extracted folder containing **both `app.json` and `index.html`**.

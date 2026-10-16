@@ -15,7 +15,7 @@ def main():
     if manifest.get("id") != "fright-feud" or not (root / "index.html").is_file():
         parser.error("Expected the Fright Feud manifest and index.html")
     files = [root / name for name in ("app.json", "index.html", "README.md", "CLAUDE.md", "THIRD-PARTY-NOTICES.md")]
-    for folder in ("fonts", "scripts", "tests"):
+    for folder in ("fonts", "scripts", "tests", "desktop", "docs"):
         files.extend(p for p in sorted((root / folder).rglob("*")) if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc" and p.name != ".DS_Store")
     for path in files:
         if path.is_symlink() or not path.resolve().is_relative_to(root) or not path.is_file():
