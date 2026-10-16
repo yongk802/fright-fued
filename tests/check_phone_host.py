@@ -57,8 +57,13 @@ def main():
             expect(board.get_by_role('button', name='Connect phone', exact=True)).to_be_visible(timeout=4000)
             def board_wait(expression):
                 board.wait_for_function(expression)
-            def post(identifier, action, payload):
-                return phone.request.post(origin + '/phone/command', headers={'Authorization': 'Bearer ' + host_token}, data={'id':identifier, 'action':action, 'args':payload})
+            def post(identifier, action, payload, generation=None):
+                envelope = {'id':identifier, 'action':action, 'args':payload}
+                if action == 'bonusSet':
+                    if generation is None:
+                        generation = phone.request.get(origin + '/phone/state', headers={'Authorization': 'Bearer ' + host_token}).json()['generation']
+                    envelope['generation'] = generation
+                return phone.request.post(origin + '/phone/command', headers={'Authorization': 'Bearer ' + host_token}, data=envelope)
             def shot(page, name):
                 if args.screenshots:
                     args.screenshots.mkdir(parents=True, exist_ok=True)
@@ -116,6 +121,7 @@ def main():
             board_wait('!soundOn')
             phone.locator('#sound').click()
             board_wait('soundOn')
+            phone.evaluate('scrollTo(0,0)')
             shot(phone, 'phone-main.png')
             shot(board, 'board-main.png')
             phone.get_by_role('button', name='Next round', exact=True).click()
@@ -132,6 +138,34 @@ def main():
             assert board.evaluate('S.revealed.size') == 0
             phone.get_by_role('button', name='Bonus round', exact=True).click()
             expect(phone.locator('#text0_0')).to_be_visible()
+            # A debounced save held in transport must settle before a confirmed clear.
+            held_saves, sent_actions = [], []
+            def hold_first_save(route):
+                command = route.request.post_data_json
+                sent_actions.append(command['action'])
+                if command['action'] == 'bonusSet' and command['args'].get('text') == 'Stale answer' and not held_saves:
+                    held_saves.append(route)
+                else:
+                    route.continue_()
+            phone.route('**/phone/command', hold_first_save)
+            phone.locator('#text0_0').fill('Stale answer')
+            phone.wait_for_timeout(450)
+            assert len(held_saves) == 1
+            phone.locator('#text0_0').fill('Obsolete queued answer')
+            phone.wait_for_timeout(400)
+            phone.once('dialog', lambda dialog: dialog.accept())
+            phone.get_by_role('button', name='Clear bonus board', exact=True).click()
+            phone.wait_for_timeout(400)
+            assert 'bonusReset' not in sent_actions, 'Clear overtook an in-flight save'
+            held_saves[0].continue_()
+            phone.wait_for_timeout(1000)
+            board_wait("FM.rows[0][0].text === ''")
+            assert sent_actions == ['bonusSet', 'bonusReset']
+            previous_generation = held_saves[0].request.post_data_json['generation']
+            assert post('late-save-after-reset', 'bonusSet', {'p':0,'i':0,'text':'Late stale answer','pts':99}, generation=previous_generation).status in (400,409)
+            phone.wait_for_timeout(500)
+            assert board.evaluate('FM.rows[0][0].text') == ''
+            phone.unroute('**/phone/command')
             phone.locator('#text0_0').fill('Orange')
             phone.wait_for_timeout(1200)
             expect(phone.locator('#text0_0')).to_be_focused()
@@ -182,6 +216,8 @@ def main():
             expect(phone.locator('#time')).to_contain_text('Paused')
             phone.evaluate('scrollTo(0,0)')
             shot(phone, 'phone-bonus.png')
+            phone.locator('.bonus-row').first.scroll_into_view_if_needed()
+            shot(phone, 'phone-bonus-entry.png')
             shot(board, 'board-bonus.png')
             assert phone.evaluate('document.documentElement.scrollWidth <= innerWidth')
             # Stop board heartbeats long enough to disable phone actions. Laptop stays private.

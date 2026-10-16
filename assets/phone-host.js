@@ -8,7 +8,11 @@
     online = false,
     ended = false,
     layout = "",
-    counter = 0;
+    counter = 0,
+    generation = 0,
+    intentEpoch = 0,
+    sending = false;
+  let commands = [];
   const dirty = new Map(),
     saves = new Map();
   const esc = (s) =>
@@ -50,25 +54,62 @@
       clearTimeout(timeout);
     }
   }
+  function discardCommands(predicate = () => true) {
+    commands = commands.filter((job) => {
+      if (!predicate(job)) return true;
+      job.resolve(false);
+      return false;
+    });
+  }
+  function updateGeneration(value) {
+    if (Number.isSafeInteger(value) && value >= generation) generation = value;
+  }
   function enabled(value) {
     online = value;
+    if (!value) {
+      // Connection recovery starts with fresh user intent, never an old backlog.
+      discardCommands();
+      saves.forEach(clearTimeout);
+      saves.clear();
+      intentEpoch++;
+    }
     host.querySelectorAll("button,input,select").forEach((el) => {
       el.disabled = !value || el.dataset.unavailable === "true";
     });
   }
-  async function send(action, args = {}) {
-    if (!online || ended) return false;
-    const id =
+  function send(action, args = {}) {
+    if (!online || ended) return Promise.resolve(false);
+    if (action === "bonusReset")
+      discardCommands((job) => job.command.action === "bonusSet");
+    if (commands.length >= 12) {
+      notice.textContent =
+        "Too many pending actions. Wait for the board, then try again.";
+      return Promise.resolve(false);
+    }
+    // Capture values now: later field edits or reset responses must not rewrite queued intent.
+    const command = {
+      id:
         Date.now().toString(36) +
         "_" +
         Math.random().toString(36).slice(2, 12) +
         "_" +
         ++counter,
-      started = Date.now();
-    // Retry only this ID, for a short bounded period. Never replay a backlog on reconnect.
+      action,
+      args: JSON.parse(JSON.stringify(args)),
+    };
+    if (action === "bonusSet") command.generation = generation;
+    return new Promise((resolve) => {
+      commands.push({ command, resolve, queuedAt: Date.now() });
+      drainCommands();
+    });
+  }
+  async function submit(command) {
+    // The same ID is the acceptance ordering point, even if the first response was lost.
     for (let attempt = 0; attempt < 2; attempt++) {
+      if (!online || ended) return false;
       try {
-        await api("command", { id, action, args });
+        const result = await api("command", command);
+        updateGeneration(result.generation);
         notice.textContent = "";
         return true;
       } catch (e) {
@@ -76,21 +117,41 @@
           finish();
           return false;
         }
-        if (
-          e.status ||
-          attempt === 1 ||
-          !online ||
-          Date.now() - started > 3000
-        ) {
+        if (e.status || attempt === 1 || !online || ended) {
           notice.textContent =
-            e.status === 400
-              ? "That action is out of date. Check the current round."
+            e.status === 400 || e.status === 409
+              ? "That action is out of date. Check the board and try again."
               : "Action was not confirmed. Check the board before trying again.";
           return false;
         }
       }
     }
     return false;
+  }
+  async function drainCommands() {
+    if (sending) return;
+    sending = true;
+    try {
+      while (commands.length && online && !ended) {
+        const job = commands.shift();
+        if (Date.now() - job.queuedAt > 3500) {
+          job.resolve(false);
+          discardCommands();
+          notice.textContent =
+            "Pending actions expired. Check the board before trying again.";
+          break;
+        }
+        const accepted = await submit(job.command);
+        job.resolve(accepted);
+        if (!accepted) {
+          // A failed save cannot be followed by a dependent reveal, navigation, or reset.
+          discardCommands();
+          break;
+        }
+      }
+    } finally {
+      sending = false;
+    }
   }
   function finish() {
     ended = true;
@@ -371,6 +432,7 @@
   host.addEventListener("click", async (e) => {
     const el = e.target.closest("button");
     if (!el || el.disabled) return;
+    let epoch = intentEpoch;
     if (el.id === "start") {
       await send("start", {
         names: [$("teamName0").value.trim(), $("teamName1").value.trim()],
@@ -389,7 +451,8 @@
       return;
     }
     if (el.dataset.timerReset) {
-      if (await send("timer", { seconds: 20 })) await send("timerStop");
+      if ((await send("timer", { seconds: 20 })) && epoch === intentEpoch)
+        await send("timerStop");
       return;
     }
     const row = el.closest(".bonus-row");
@@ -412,6 +475,7 @@
     )
       return;
     if (action === "bonusReset") {
+      epoch = ++intentEpoch;
       saves.forEach(clearTimeout);
       saves.clear();
       dirty.clear();
@@ -423,14 +487,14 @@
         if (!saves.has(key)) continue;
         clearTimeout(saves.get(key));
         saves.delete(key);
-        if (!(await saveRow(pendingRow))) return;
+        if (!(await saveRow(pendingRow)) || epoch !== intentEpoch) return;
       }
     }
     if (row && ["bonusReveal", "bonusHide"].includes(action)) {
       const key = row.dataset.p + "_" + row.dataset.i;
       clearTimeout(saves.get(key));
       saves.delete(key);
-      if (!(await saveRow(row))) return;
+      if (!(await saveRow(row)) || epoch !== intentEpoch) return;
     }
     if (
       (await send(action, JSON.parse(el.dataset.args || "{}"))) &&
@@ -444,6 +508,7 @@
       if (!token) throw { status: 403 };
       const result = await api("state");
       if (ended) return; // A poll already in flight must not undo explicit disconnect.
+      updateGeneration(result.generation);
       state = result.state;
       online = Boolean(result.board_connected && state);
       connection.textContent = online
