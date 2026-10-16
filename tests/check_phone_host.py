@@ -171,6 +171,37 @@ def main():
             expect(phone.locator('#text0_0')).to_be_focused()
             expect(phone.locator('#text0_0')).to_have_value('Orange')
             board_wait("FM.rows[0][0].text === 'Orange' && FM.rows[0][0].pts === 45")
+            # A rejected save restores the board value even while its input retains focus.
+            def reject_save(route):
+                if route.request.post_data_json['action'] == 'bonusSet':
+                    route.fulfill(status=400, content_type='application/json', body='{"error":"stale generation"}')
+                else:
+                    route.continue_()
+            phone.route('**/phone/command', reject_save)
+            phone.locator('#text0_0').fill('Rejected draft')
+            expect(phone.locator('#text0_0')).to_have_value('Orange')
+            expect(phone.locator('#text0_0')).to_be_focused()
+            expect(phone.locator('#notice')).to_contain_text('Unsent edits were discarded')
+            assert board.evaluate('FM.rows[0][0].text') == 'Orange'
+            phone.unroute('**/phone/command')
+            # Lost drafts must not survive reconnection and blank freshly rebuilt fields.
+            phone.route('**/phone/command', lambda route: route.abort())
+            phone.locator('#text0_0').fill('Lost edit')
+            phone.route('**/phone/state', lambda route: route.abort())
+            expect(phone.locator('#connection')).to_contain_text('Connection lost', timeout=5000)
+            phone.wait_for_timeout(700)
+            phone.unroute('**/phone/command')
+            phone.unroute('**/phone/state')
+            expect(phone.locator('#connection')).to_contain_text('Connected', timeout=5000)
+            phone.get_by_role('button', name='Main game', exact=True).click()
+            expect(phone.locator('#pot')).to_be_visible()
+            phone.get_by_role('button', name='Bonus round', exact=True).click()
+            expect(phone.locator('#text0_0')).to_have_value('Orange')
+            expect(phone.locator('#pts0_0')).to_have_value('45')
+            phone.locator('.bonus-row').first.locator('[data-action="bonusReveal"]').click()
+            board_wait("FM.rows[0][0].text === 'Orange' && FM.rows[0][0].shown")
+            phone.locator('.bonus-row').first.locator('[data-action="bonusHide"]').click()
+            board_wait('!FM.rows[0][0].shown')
             assert board.locator('#fmcol0 .fmrow .a').first.inner_text() == ''
             assert board.locator('#fmcol0 .fmrow .p').first.inner_text() == ''
             phone.locator('.bonus-row').first.locator('[data-action="bonusReveal"]').click()

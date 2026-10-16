@@ -11,7 +11,9 @@
     counter = 0,
     generation = 0,
     intentEpoch = 0,
-    sending = false;
+    sending = false,
+    reconcileFields = false,
+    draftsDiscarded = false;
   let commands = [];
   const dirty = new Map(),
     saves = new Map();
@@ -61,6 +63,15 @@
       return false;
     });
   }
+  function discardDrafts() {
+    if (dirty.size) draftsDiscarded = true;
+    dirty.clear();
+    saves.forEach(clearTimeout);
+    saves.clear();
+    intentEpoch++;
+    // Recovery replaces even a formerly focused draft with the authoritative value.
+    reconcileFields = true;
+  }
   function updateGeneration(value) {
     if (Number.isSafeInteger(value) && value >= generation) generation = value;
   }
@@ -69,9 +80,7 @@
     if (!value) {
       // Connection recovery starts with fresh user intent, never an old backlog.
       discardCommands();
-      saves.forEach(clearTimeout);
-      saves.clear();
-      intentEpoch++;
+      discardDrafts();
     }
     host.querySelectorAll("button,input,select").forEach((el) => {
       el.disabled = !value || el.dataset.unavailable === "true";
@@ -82,6 +91,7 @@
     if (action === "bonusReset")
       discardCommands((job) => job.command.action === "bonusSet");
     if (commands.length >= 12) {
+      discardDrafts();
       notice.textContent =
         "Too many pending actions. Wait for the board, then try again.";
       return Promise.resolve(false);
@@ -137,6 +147,7 @@
         if (Date.now() - job.queuedAt > 3500) {
           job.resolve(false);
           discardCommands();
+          discardDrafts();
           notice.textContent =
             "Pending actions expired. Check the board before trying again.";
           break;
@@ -146,6 +157,7 @@
         if (!accepted) {
           // A failed save cannot be followed by a dependent reveal, navigation, or reset.
           discardCommands();
+          discardDrafts();
           break;
         }
       }
@@ -164,6 +176,10 @@
   function field(id, value) {
     const el = $(id);
     if (!el) return;
+    if (reconcileFields) {
+      el.value = value;
+      return;
+    }
     if (dirty.has(id)) {
       if (String(value) === dirty.get(id)) dirty.delete(id);
       else return;
@@ -260,6 +276,9 @@
       round = s.rounds[m.r];
     const key = s.screen + ":" + m.r;
     if (layout !== key) {
+      // New DOM fields always start from board data, never detached-input draft metadata.
+      dirty.clear();
+      reconcileFields = true;
       layout = key;
       const nav =
         s.screen === "setup"
@@ -384,6 +403,7 @@
     }
     if ($("sound"))
       $("sound").textContent = s.soundOn ? "Sound on" : "Sound off";
+    reconcileFields = false;
     enabled(online);
   }
   async function saveRow(row) {
@@ -517,6 +537,11 @@
       connection.classList.toggle("live", online);
       if (state) render();
       else enabled(false);
+      if (online && draftsDiscarded) {
+        notice.textContent =
+          "Unsent edits were discarded; answers now match the laptop.";
+        draftsDiscarded = false;
+      }
     } catch (e) {
       if (e.status === 403) {
         finish();
