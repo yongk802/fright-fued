@@ -338,7 +338,7 @@
             <h2>Bonus round</h2>
             <div class="timer" id="time"></div>
             <p id="bonusTotal"></p>
-            <div class="row">
+            <div class="row timer-controls">
               ${button("Start 20 sec", "timer", { seconds: 20 }, 'class="primary"')}${button("Start 25 sec", "timer", { seconds: 25 }, 'class="primary"')}${button("Stop", "timerStop")}
             </div>
             <div class="row">

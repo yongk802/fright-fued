@@ -20,6 +20,9 @@ body {
 }
 header {
   padding: 22px 18px 14px;
+  padding-left: max(18px, env(safe-area-inset-left));
+  padding-right: max(18px, env(safe-area-inset-right));
+  padding-top: max(22px, env(safe-area-inset-top));
   background: linear-gradient(125deg, #402047, #21122f);
   border-bottom: 1px solid var(--line);
 }
@@ -45,6 +48,9 @@ main {
   max-width: 720px;
   margin: auto;
   padding: 16px 14px 40px;
+  padding-left: max(14px, env(safe-area-inset-left));
+  padding-right: max(14px, env(safe-area-inset-right));
+  padding-bottom: calc(40px + env(safe-area-inset-bottom));
 }
 h2 {
   font-size: 22px;
@@ -108,7 +114,8 @@ button:disabled {
   margin: 9px 0;
 }
 .row > * {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
 }
 .row button {
   white-space: normal;
@@ -121,6 +128,8 @@ label {
 }
 input,
 select {
+  min-width: 0;
+  max-width: 100%;
   width: 100%;
   background: #160d20;
   color: white;
@@ -134,14 +143,15 @@ select:focus {
 }
 .teams {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 .teams section {
   min-width: 0;
   padding: 12px;
 }
 .teams h3 {
+  min-height: 2.9em;
   overflow-wrap: anywhere;
   font-size: 17px;
 }
@@ -162,6 +172,18 @@ select:focus {
   font-size: 13px;
   padding: 8px 5px;
 }
+.teams section > button {
+  width: 100%;
+}
+.teams .row:last-child {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-bottom: 0;
+}
+.teams .row:last-child button {
+  padding-left: 10px;
+  padding-right: 10px;
+}
 .answer {
   display: flex;
   gap: 10px;
@@ -178,12 +200,13 @@ select:focus {
 }
 .answer strong {
   display: block;
+  overflow-wrap: anywhere;
 }
 .answer small {
   display: block;
 }
 .answer button {
-  min-width: 85px;
+  flex: 0 0 96px;
 }
 .pot {
   font-size: 18px;
@@ -200,8 +223,21 @@ select:focus {
 }
 .entry {
   display: grid;
-  grid-template-columns: 1fr 74px;
+  grid-template-columns: minmax(0, 1fr) 74px;
   gap: 8px;
+}
+.entry > div {
+  min-width: 0;
+}
+input, select, button {
+  scroll-margin-block: 18px;
+}
+.timer-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.timer-controls > :last-child {
+  grid-column: 1 / -1;
 }
 .chips {
   display: flex;
@@ -225,13 +261,15 @@ select:focus {
   font-size: 13px;
 }
 #notice {
-  position: fixed;
+  position: sticky;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 2;
   margin: 0;
   padding: 10px 16px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  overflow-wrap: anywhere;
   background: #522b41;
   color: #ffe3d9;
   font-size: 14px;
@@ -255,6 +293,7 @@ nav {
 }
 nav button {
   flex: 1;
+  min-width: 0;
 }
 .chosen {
   border-color: var(--orange);
@@ -263,11 +302,22 @@ nav button {
 @media (min-width: 600px) {
   main {
     padding: 22px;
+    padding-left: max(22px, env(safe-area-inset-left));
+    padding-right: max(22px, env(safe-area-inset-right));
+    padding-bottom: calc(40px + env(safe-area-inset-bottom));
   }
   .teams button {
     font-size: 15px;
   }
   .teams section {
     padding: 15px;
+  }
+}
+@media (max-width: 379px) {
+  .teams {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .teams h3 {
+    min-height: 0;
   }
 }

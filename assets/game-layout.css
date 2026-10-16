@@ -1,0 +1,62 @@
+/* Layout polish only. The game's original typography and palette live in index.html. */
+body > header .nav { align-items: center; }
+body .btn { min-height: 44px; touch-action: manipulation; }
+body .scorerow { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+body .team { min-width: 0; }
+body .teamctrl { margin-top: .5rem; }
+body .tile .back { gap: .75rem; }
+body .tile .back .ans { min-width: 0; }
+body .tile .back .pts { flex-shrink: 0; }
+body .fmcol, body .fmrow { min-width: 0; }
+body .fmrow { grid-template-columns: minmax(0, 1fr) 4.2rem; }
+body .fmrow:last-child { margin-bottom: 0; }
+body .controls { align-items: stretch; gap: .6rem; }
+body .mbox { overscroll-behavior: contain; }
+body .mrow input { min-width: 0; }
+body .mrow input.t { flex-basis: 160px; }
+body #phonePair .pair-card { width: 100%; }
+
+/* Keep the complete audience board in view on the older laptop's short screen. */
+@media (min-width: 761px) and (max-height: 820px) {
+  body.phone-audience > header { padding-top: .45rem; padding-bottom: .45rem; }
+  body.phone-audience .team { padding: .5rem .8rem; }
+  body.phone-audience .strikes { margin: .2rem 0 0; }
+  body.phone-audience .qbar { margin: .55rem 0 .5rem; }
+  body.phone-audience .board { padding: .7rem; gap: .5rem; }
+  body.phone-audience .tile { height: clamp(60px, 9vh, 74px); }
+  body.phone-audience .bhead { margin: .35rem 0 .7rem; }
+  body.phone-audience .fmboard { padding: .75rem; gap: 1rem; }
+}
+
+/* Leave room for browser toolbars when the laptop is outside fullscreen. */
+@media (min-width: 761px) and (max-height: 700px) {
+  body.phone-audience .team { padding-top: .25rem; padding-bottom: .25rem; }
+  body.phone-audience .qbar { margin: .25rem 0 .3rem; }
+  body.phone-audience .board { padding: .5rem; gap: .4rem; }
+  body.phone-audience .tile { height: 56px; }
+}
+
+@media (max-width: 760px) {
+  body > header { padding: .9rem; gap: .8rem; }
+  body > header .nav { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body > header .nav .btn { padding-left: .4rem; padding-right: .4rem; }
+  body #setup { margin: 2vh auto; padding: 1.2rem; }
+  body #game, body #bonus { padding: 0 .75rem 1.2rem; }
+  body .scorerow { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; }
+  body .team { padding: .7rem .5rem; }
+  body .teamctrl { display: grid; grid-template-columns: minmax(0, 1fr); }
+  body .teamctrl .btn { padding-left: .2rem; padding-right: .2rem; }
+  body .xslot { min-width: 44px; min-height: 44px; }
+  body .pot { min-width: 0; }
+  body .board { padding: .6rem; gap: .6rem; }
+  body .tile .back { padding: 0 .65rem; }
+  body .fmboard { padding: .65rem; gap: 1rem; }
+  body .bhead { justify-items: center; text-align: center; }
+  body .controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body #phonePair { padding: 12px; }
+  body #phonePair .pair-card { padding: 18px; }
+}
+
+@media (max-width: 379px) {
+  body .scorerow { grid-template-columns: minmax(0, 1fr); }
+}
