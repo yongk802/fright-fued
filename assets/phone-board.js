@@ -7,7 +7,9 @@
     paired = false,
     disconnecting = false,
     ack = [],
-    info = null;
+    info = null,
+    pairingWindow = null,
+    pairingBlocked = false;
   const seen = new Set();
   const button = document.createElement("button");
   button.id = "phoneConnect";
@@ -19,30 +21,39 @@
   status.setAttribute("role", "status");
   document.querySelector("header").after(status);
   const style = document.createElement("style");
-  style.textContent = /* CSS */ `#phoneStatus{text-align:center;color:var(--candle);padding:.25rem;font-size:.9rem}#phoneStatus:empty{display:none}.phone-audience nav button:not(#fsBtn):not(#phoneConnect),.phone-audience #setup,.phone-audience .controls,.phone-audience .keys,.phone-audience .teamctrl,.phone-audience .hint{display:none!important}.phone-audience .team,.phone-audience .tile,.phone-audience .fmrow,.phone-audience .xslot{pointer-events:none}.phone-audience .xslot{cursor:default}#phonePair{position:fixed;z-index:1100;inset:0;background:#110b20eb;display:flex;align-items:center;justify-content:center;padding:20px}#phonePair[hidden]{display:none}#phonePair .pair-card{background:#291637;color:#fff;border:2px solid #ff922b;border-radius:20px;padding:24px;max-width:440px;text-align:center;max-height:95vh;overflow:auto}#phonePair svg{display:block;background:white;margin:16px auto;max-width:100%;height:auto}#phonePair a{color:#ffc779;overflow-wrap:anywhere}#phonePair button{min-height:44px;margin:12px 0}`;
+  style.textContent = /* CSS */ `#phoneStatus{text-align:center;color:var(--candle);padding:.25rem;font-size:.9rem}#phoneStatus:empty{display:none}.phone-audience nav button:not(#fsBtn):not(#phoneConnect),.phone-audience #setup,.phone-audience .controls,.phone-audience .keys,.phone-audience .teamctrl,.phone-audience .hint{display:none!important}.phone-audience .team,.phone-audience .tile,.phone-audience .fmrow,.phone-audience .xslot{pointer-events:none}.phone-audience .xslot{cursor:default}`;
   document.head.appendChild(style);
-  const panel = document.createElement("div");
-  panel.id = "phonePair";
-  panel.hidden = true;
-  panel.innerHTML = /* HTML */ `
-    <div
-      class="pair-card"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Connect phone"
-    >
-      <h2>Host from your phone</h2>
-      <p id="phoneInstructions"></p>
-      <div id="phoneQR"></div>
-      <a id="phoneURL"></a>
-      <p>Keep the phone private. The laptop becomes the contestant board.</p>
-      <button class="btn" id="phonePairClose">Close</button>
-    </div>
-  `;
-  document.body.appendChild(panel);
-  $("phonePairClose").onclick = () => {
-    panel.hidden = true;
-  };
+  const pairingURL = new URL("assets/phone-pair.html", location.href).href;
+  function openPairingWindow() {
+    try {
+      if (pairingWindow && !pairingWindow.closed &&
+          (pairingWindow.document.URL === "about:blank" ||
+           pairingWindow.location.href === pairingURL)) {
+        pairingWindow.focus();
+        return pairingWindow;
+      }
+    } catch (e) {
+      // A window navigated elsewhere belongs to the user; open a fresh one.
+    }
+    const popup = window.open(pairingURL, "", "popup=yes,width=520,height=760,resizable=yes,scrollbars=yes");
+    if (!popup) return null;
+    pairingWindow = popup;
+    return popup;
+  }
+  function closePairingWindow() {
+    try {
+      if (pairingWindow && !pairingWindow.closed &&
+          (pairingWindow.document.URL === "about:blank" ||
+           pairingWindow.location.href === pairingURL)) pairingWindow.close();
+    } catch (e) {}
+    pairingWindow = null;
+  }
+  window.addEventListener("pagehide", closePairingWindow);
+  window.addEventListener("message", (event) => {
+    if (event.origin === location.origin && event.source === pairingWindow &&
+        event.data && event.data.type === "ff-pair-ready")
+      renderPairingWindow(pairingWindow);
+  });
   function audience(value) {
     paired = value;
     document.body.classList.toggle("phone-audience", value);
@@ -76,7 +87,7 @@
     (e) => {
       if (
         (paired || stopped) &&
-        !e.target.closest("#phoneConnect,#fsBtn,#phonePair,#splash")
+        !e.target.closest("#phoneConnect,#fsBtn,#splash")
       ) {
         e.preventDefault();
         e.stopImmediatePropagation();
@@ -294,38 +305,59 @@
     info = await api("info");
     return info;
   }
-  button.onclick = async () => {
+  button.onclick = () => {
+    // Open during the click gesture, before awaiting the companion response.
+    const popup = openPairingWindow();
+    if (!popup) {
+      pairingBlocked = true;
+      status.textContent = "Allow pop-ups for this game, then click Connect phone again.";
+      return;
+    }
+    if (pairingBlocked) status.textContent = "";
+    pairingBlocked = false;
     // A laptop gesture unlocks audio for subsequent remote phone commands.
     const audio = ac();
     if (audio && audio.state === "suspended") audio.resume().catch(() => {});
-    panel.hidden = false;
-    $("phoneQR").textContent = "";
-    $("phoneURL").textContent = "";
-    $("phoneURL").removeAttribute("href");
+    renderPairingWindow(popup);
+  };
+  async function renderPairingWindow(popup) {
+    if (!popup || popup.closed || popup.location.href !== pairingURL ||
+        !popup.document.getElementById("phoneInstructions")) return;
+    const doc = popup.document,
+      instructions = doc.getElementById("phoneInstructions"),
+      qrBox = doc.getElementById("phoneQR"),
+      link = doc.getElementById("phoneURL");
+    const theme = getComputedStyle(document.documentElement);
+    for (const name of ["--ui", "--night", "--plum", "--bone", "--candle"])
+      doc.documentElement.style.setProperty(name, theme.getPropertyValue(name));
+    qrBox.textContent = "";
+    link.textContent = "";
+    link.removeAttribute("href");
     if (!token) {
-      $("phoneInstructions").textContent =
+      instructions.textContent =
         "Launch Fright Feud using the Desktop shortcut to enable phone hosting. You can keep playing here with the local controls.";
       return;
     }
     try {
-      await pairingInfo();
-      const url = info.host_urls[0];
-      $("phoneInstructions").textContent = url
+      const details = await pairingInfo();
+      if (popup.closed) return;
+      const url = details.host_urls[0];
+      instructions.textContent = url
         ? "On the same Wi-Fi, scan this code with your iPhone camera and open it in Safari. No app needed."
         : "Connect the Mac and phone to the same Wi-Fi, then try Connect phone again. No usable Wi-Fi address was found.";
       if (url) {
         const qr = qrcode(0, "M");
         qr.addData(url);
         qr.make();
-        $("phoneQR").innerHTML = qr.createSvgTag(5, 16);
-        $("phoneURL").textContent = url;
-        $("phoneURL").href = url;
+        qrBox.innerHTML = qr.createSvgTag(5, 16);
+        link.textContent = url;
+        link.href = url;
       }
     } catch (e) {
-      $("phoneInstructions").textContent =
+      instructions.textContent =
         "Phone companion unavailable. Relaunch using the Desktop shortcut, then try again.";
     }
-  };
+  }
   if (!token) return;
   // Avoid flashing private laptop controls during refresh recovery.
   audience(true);
@@ -337,18 +369,23 @@
         result = await api("sync", { lease, state: snapshot(), ack: sentAck });
       ack = ack.filter((id) => !sentAck.includes(id));
       if (disconnecting && sentAck.length) {
+        closePairingWindow();
         disconnecting = false;
         rememberPairing(false);
         audience(false);
         await pairingInfo();
       }
       if (result.host_connected) {
+        if (!paired) closePairingWindow();
         rememberPairing(true);
         audience(true);
-        panel.hidden = true;
-        status.textContent = "Phone host connected · Contestant board";
+        status.textContent = pairingBlocked
+          ? "Allow pop-ups for this game, then click Connect phone again."
+          : "Phone host connected · Contestant board";
       } else
-        status.textContent = paired
+        status.textContent = pairingBlocked
+          ? "Allow pop-ups for this game, then click Connect phone again."
+          : paired
           ? "Phone disconnected · Reconnect on your phone or use Connect phone"
           : "Phone hosting ready · Connect phone to begin";
       for (const command of result.commands) {
@@ -361,6 +398,7 @@
       }
     } catch (e) {
       if (e.status === 409) {
+        closePairingWindow();
         stopped = true;
         stopTimer();
         cancelBonusReveals();

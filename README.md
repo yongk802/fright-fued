@@ -9,7 +9,7 @@ AI model, account, or internet connection needed to play.
 
 ## One-click Mac app — App Engine included
 
-Download **[Fright-Feud-macOS.zip](https://github.com/yongk802/fright-fued/releases/download/v1.2.2/Fright-Feud-macOS.zip)**,
+Download **[Fright-Feud-macOS.zip](https://github.com/yongk802/fright-fued/releases/download/v1.2.3/Fright-Feud-macOS.zip)**,
 unzip it in Finder, and open **Fright Feud.app**. It supports Intel and Apple
 Silicon Macs running macOS 12.6 or later. Python, App Engine, their dependencies,
 and the game are bundled, so the target Mac needs no developer tools or setup
@@ -88,11 +88,14 @@ take precedence in the engine catalog.
    Desktop shortcut (which gets the latest source), or a fresh version 1.2 Mac install.
    When upgrading the older Desktop shortcut for the first time, let it update,
    close that game tab, and launch the shortcut once more so it uses the new launcher.
-2. Click **Connect phone** on the laptop, then scan the QR code with the iPhone
-   Camera and open it in Safari. A link is also provided for manual entry.
+2. Click **Connect phone** on the laptop to open the separate pairing window,
+   then scan its QR code with the iPhone Camera and open it in Safari. A link is
+   also provided for manual entry. If the browser blocks the window, allow
+   pop-ups for the local game and click **Connect phone** again.
 3. The phone shows private answers and touch controls. Enter team names there,
    start the game, and use the phone for reveals, scores, strikes and rounds.
-   The laptop automatically hides the host controls and pairing QR once paired.
+   The laptop automatically hides the host controls and closes the pairing window
+   once paired. **Connect phone** can reopen it without covering the board.
 4. For Fast Fright, enter answers and points on the phone, then tap **Reveal**
    when ready. Unrevealed input stays off the contestant board.
 

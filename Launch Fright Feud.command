@@ -8,7 +8,7 @@
 FOLDER="$(cd "$(dirname "$0")" && pwd)"
 APP="$HOME/Applications/Fright Feud.app"
 BUNDLE_ID="com.yongk802.fright-feud"
-RELEASE="https://github.com/yongk802/fright-fued/releases/download/v1.2.2/Fright-Feud-macOS.zip"
+RELEASE="https://github.com/yongk802/fright-fued/releases/download/v1.2.3/Fright-Feud-macOS.zip"
 
 finish() { echo; read -r -p "Press Return to close." _; exit 0; }
 

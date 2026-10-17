@@ -1,0 +1,52 @@
+/* The existing pairing card, in its own window instead of over the board. */
+:root {
+  --ui: "Oswald", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --night: #14081f;
+  --plum: #2a1038;
+  --bone: #f4ead8;
+  --candle: #ffd27a;
+  color-scheme: dark;
+  background: var(--night);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #110b20eb;
+  font-family: var(--ui);
+}
+.pair-card {
+  width: 100%;
+  max-width: 440px;
+  padding: 24px;
+  border: 2px solid #ff922b;
+  border-radius: 20px;
+  background: #291637;
+  color: #fff;
+  text-align: center;
+}
+svg { display: block; background: white; margin: 16px auto; max-width: 100%; height: auto; }
+a { color: #ffc779; overflow-wrap: anywhere; }
+.btn {
+  min-height: 44px;
+  margin: 12px 0;
+  padding: .45rem .9rem;
+  border: 2px solid #5b2a75;
+  border-radius: 8px;
+  background: var(--plum);
+  color: var(--bone);
+  font-family: var(--ui);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--candle); }
+.btn:focus-visible, a:focus-visible { outline: 3px solid var(--candle); outline-offset: 2px; }
+@media (max-width: 760px) {
+  body { padding: 12px; }
+  .pair-card { padding: 18px; }
+}

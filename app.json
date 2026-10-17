@@ -2,7 +2,7 @@
   "id": "fright-feud",
   "label": "Fright Feud",
   "icon": "🎃",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "A Halloween survey party game with team scores, buzzers, and a private bonus-round host window.",
   "categories": ["games"],
   "sandbox": "allow-scripts allow-same-origin allow-popups allow-modals",

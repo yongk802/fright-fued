@@ -83,17 +83,59 @@ def main():
                         page.wait_for_function("getComputedStyle(document.getElementById('splash')).opacity === '0'")
                         expect(page.locator('#xover')).to_be_hidden()
                     page.screenshot(path=str(args.screenshots / name), full_page=not name.startswith('phone-'))
+            with board.context.expect_page(timeout=3000) as pairing_info:
+                board.get_by_role('button', name='Connect phone', exact=True).click()
+            pairing = pairing_info.value
+            expect(pairing.get_by_role('heading', name='Host from your phone')).to_be_visible()
+            expect(pairing.locator('#phoneQR svg')).to_be_visible()
+            pairing.wait_for_function("getComputedStyle(document.body).fontFamily.includes('Oswald')")
+            pairing.evaluate('document.fonts.ready')
+            shot(pairing, 'pairing-window.png')
+            assert board.locator('#phonePair').count() == 0, 'Pairing must not cover the board'
+            pages_before = len(board.context.pages)
             board.get_by_role('button', name='Connect phone', exact=True).click()
-            expect(board.locator('#phonePair')).to_be_visible()
+            board.wait_for_timeout(600)
+            assert len(board.context.pages) == pages_before, 'Repeated clicks should reuse the pairing window'
+            with pairing.expect_event('close'):
+                pairing.get_by_role('button', name='Close', exact=True).click()
+            assert pairing.is_closed()
+            # A blocked popup needs a persistent hint, without restoring an overlay.
+            board.evaluate('window.savedOpen = window.open; window.open = () => null')
+            board.get_by_role('button', name='Connect phone', exact=True).click()
+            expect(board.locator('#phoneStatus')).to_contain_text('Allow pop-ups')
+            board.wait_for_timeout(700)
+            expect(board.locator('#phoneStatus')).to_contain_text('Allow pop-ups')
+            assert board.locator('#phonePair').count() == 0
+            board.evaluate('window.open = window.savedOpen; delete window.savedOpen')
+            with board.context.expect_page(timeout=3000) as reopened_info:
+                board.get_by_role('button', name='Connect phone', exact=True).click()
+            pairing = reopened_info.value
+            expect(pairing.locator('#phoneQR svg')).to_be_visible()
+            assert pairing.locator('#phoneURL').get_attribute('target') == '_blank'
+            assert 'noopener' in pairing.locator('#phoneURL').get_attribute('rel')
             board.wait_for_function("AC && AC.state === 'running'")
             info = json.load(urlopen(Request(origin + '/phone/info', headers={'Authorization': 'Bearer ' + nonce})))
             host_token = info['host_token']
             phone_context = monitor(browser.new_context(viewport={'width':390, 'height':844}, is_mobile=True, has_touch=True))
             phone = phone_context.new_page()
-            phone.goto(origin + '/phone/#' + host_token)
-            expect(phone.locator('#connection')).to_contain_text('Connected')
-            expect(board.locator('#phonePair')).to_be_hidden()
+            with pairing.expect_event('close', timeout=5000):
+                phone.goto(origin + '/phone/#' + host_token)
+                expect(phone.locator('#connection')).to_contain_text('Connected')
+            assert pairing.is_closed(), 'Close the private pairing link after the phone connects'
             expect(board.locator('#startBtn')).to_be_hidden()
+            board.evaluate('window.savedOpen = window.open; window.open = () => null')
+            board.get_by_role('button', name='Connect phone', exact=True).click()
+            board.wait_for_timeout(800)
+            expect(board.locator('#phoneStatus')).to_contain_text('Allow pop-ups')
+            board.evaluate('window.open = window.savedOpen; delete window.savedOpen')
+            with board.context.expect_page(timeout=3000) as connected_pairing:
+                board.get_by_role('button', name='Connect phone', exact=True).click()
+            pairing = connected_pairing.value
+            expect(pairing.locator('#phoneQR svg')).to_be_visible()
+            board.wait_for_timeout(700)
+            assert not pairing.is_closed(), 'The button should also work when a phone is already connected'
+            with pairing.expect_event('close'):
+                pairing.get_by_role('button', name='Close', exact=True).click()
             phone.locator('#teamName0').fill('Night Owls')
             phone.locator('#teamName1').fill('Pumpkin Kings')
             phone.locator('#start').click()
@@ -289,8 +331,13 @@ def main():
             phone.once('dialog', lambda dialog: dialog.accept())
             phone.get_by_role('button', name='Clear bonus board', exact=True).click()
             newer.wait_for_function("FM.rows[0][0].text === '' && FM.left === 20")
+            with newer.context.expect_page(timeout=3000) as final_pairing:
+                newer.get_by_role('button', name='Connect phone', exact=True).click()
+            pairing = final_pairing.value
+            expect(pairing.locator('#phoneQR svg')).to_be_visible()
             phone.once('dialog', lambda dialog: dialog.accept())
-            phone.get_by_role('button', name='Disconnect phone', exact=True).click()
+            with pairing.expect_event('close', timeout=5000):
+                phone.get_by_role('button', name='Disconnect phone', exact=True).click()
             expect(phone.locator('#connection')).to_contain_text('Phone disconnected')
             expect(newer.locator('#hostPanelBtn')).to_be_visible()
             new_info = json.load(urlopen(Request(origin + '/phone/info', headers={'Authorization': 'Bearer ' + nonce})))
