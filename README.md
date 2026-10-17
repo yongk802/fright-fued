@@ -1,8 +1,14 @@
 # Fright Feud 🎃
 
-A Halloween survey party game for **App Engine**, with eight main rounds,
+A Halloween survey party game for **App Engine**, with four selectable games. Each has three main rounds (single, double, and triple points),
 team scores and strikes, keyboard buzzers, synthesized sound effects, a printable
-answer key, and a five-question Fast Fright bonus round with private host controls.
+answer key, and five Fast Fright bonus questions with private host controls.
+Finish each game in the bonus round to save its team scores, winner, and bonus total.
+The next unplayed game is selected automatically; replaying a game replaces its result.
+Game selection and results are available on the laptop and paired phone.
+Results use browser storage; the Mac phone companion also saves them privately
+under `~/Library/Application Support/Fright Feud/game-results.json`, surviving relaunches.
+A disk warning leaves the game playable; keep the board open until saving succeeds.
 
 All game code and fonts are included. There is no npm install, compilation,
 AI model, account, or internet connection needed to play.
@@ -168,7 +174,7 @@ been directly tested as part of this packaging work.
 ## Edit and rebuild
 
 `index.html` contains the app's HTML, styles, questions, and game code. Edit
-`ROUNDS` for the main questions and `BONUS` for the bonus questions. Keep up to
+`GAMES` for the four sets of main-round and bonus questions. Keep up to
 eight answers per main question and five bonus questions.
 
 Rebuild the distribution using **Python 3.9+** (no packages required):

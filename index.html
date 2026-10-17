@@ -46,6 +46,18 @@ header{display:flex;align-items:center;justify-content:space-between;gap:1rem;pa
 .field input{background:var(--plum);border:2px solid #5b2a75;color:var(--bone);font:600 1.4rem var(--ui);padding:.5rem .8rem;border-radius:8px}
 #setup .btn.primary{font-size:1.5rem;padding:.7rem 2.2rem;margin-top:1rem}
 
+.picker{display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap;margin:1.2rem 0 .4rem}
+.picker .btn{font-size:1.15rem;padding:.5rem 1rem}
+.picker .btn.sel{background:var(--pumpkin);border-color:var(--pumpkin);color:#2a0d00}
+.picker .btn.done{border-style:dashed;color:var(--dim)}
+.results{margin-top:1.8rem;text-align:left}
+.results h3{color:var(--candle);font-weight:600;margin:0 0 .4rem;text-align:center}
+.results table{width:100%;border-collapse:collapse;font-size:1.05rem}
+.results td{padding:.35rem .5rem;border-top:1px solid #4a1f60}
+.results td.w{color:var(--candle);font-weight:600}
+.results .clear{display:block;margin:.6rem auto 0;font-size:.85rem}
+.playing{text-align:center;color:var(--candle);font-size:1.2rem;margin:-.3rem 0 .8rem}
+
 /* ---------- main game ---------- */
 #game{padding:0 1.2rem 1.2rem;max-width:1400px;margin:0 auto}
 .scorerow{display:grid;grid-template-columns:1fr auto 1fr;gap:1rem;align-items:stretch}
@@ -233,6 +245,7 @@ kbd{background:var(--plum);border:1px solid #5b2a75;border-radius:4px;padding:0 
 <header>
   <h1 class="logo">Fright Feud</h1>
   <nav class="nav">
+    <button class="btn" id="navNew">New game</button>
     <button class="btn" id="navGame">Main game</button>
     <button class="btn" id="navBonus">Bonus round</button>
     <button class="btn" id="keyBtn">Host answer key</button>
@@ -244,10 +257,17 @@ kbd{background:var(--plum);border:1px solid #5b2a75;border-radius:4px;padding:0 
 <!-- SETUP -->
 <section id="setup">
   <h2>Fright Feud</h2>
-  <p>We surveyed 100 ghouls. Two families battle to guess the most popular answers, then one brave pair plays the bonus round for glory.</p>
-  <div class="field"><label for="t1">Team 1 name</label><input id="t1" value="The Ghouls" maxlength="24"></div>
-  <div class="field"><label for="t2">Team 2 name</label><input id="t2" value="The Goblins" maxlength="24"></div>
-  <button class="btn primary" id="startBtn">Start the game</button>
+  <p>We surveyed 100 ghouls. Each game is two teams, three rounds, and a bonus round. Every game uses its own questions, so no team sees a repeat.</p>
+  <div class="picker" id="gamePick" role="group" aria-label="Choose a game"></div>
+  <div class="field"><label for="t1">Team 1 name</label><input id="t1" placeholder="e.g. The Ghouls" maxlength="24"></div>
+  <div class="field"><label for="t2">Team 2 name</label><input id="t2" placeholder="e.g. The Goblins" maxlength="24"></div>
+  <button class="btn primary" id="startBtn">Start game 1</button>
+  <p id="resultStatus" role="status"></p>
+  <div class="results hidden" id="results">
+    <h3>Results so far</h3>
+    <table><tbody id="resultsBody"></tbody></table>
+    <button class="btn clear" id="clearResults">Clear results</button>
+  </div>
 </section>
 
 <!-- MAIN GAME -->
@@ -308,6 +328,7 @@ kbd{background:var(--plum);border:1px solid #5b2a75;border-radius:4px;padding:0 
     <div class="timer" id="timer">20</div>
     <div class="btotal"><div class="val" id="fmTotal">0</div><div class="lbl">Goal: 200 points</div></div>
   </div>
+  <div class="playing" id="playingFor"></div>
   <div class="fmboard">
     <div class="fmcol" id="fmcol0"><h3>Player 1</h3></div>
     <div class="fmcol" id="fmcol1"><h3>Player 2</h3></div>
@@ -317,6 +338,7 @@ kbd{background:var(--plum);border:1px solid #5b2a75;border-radius:4px;padding:0 
     <button class="btn primary" id="hostPanelBtn">Open host controls</button>
     <button class="btn" id="maskP1">Hide player 1 answers</button>
     <button class="btn danger" id="fmReset">Clear bonus board</button>
+    <button class="btn primary" id="finishBtn">Finish game and save result</button>
   </div>
   <div class="keys">Type answers in the host controls window. Nothing appears here until you press Reveal.</div>
 </section>
@@ -327,26 +349,69 @@ kbd{background:var(--plum);border:1px solid #5b2a75;border-radius:4px;padding:0 
 /* =========================================================
    EDIT YOUR QUESTIONS HERE
    Points are made up for party play — swap in your own!
+   Each game = 3 rounds (single, double, triple points) + 5 bonus questions.
    Up to 8 answers per main-round question.
+   To add a game, copy one { rounds:[...], bonus:[...] } block.
    ========================================================= */
-const ROUNDS = [
-  { q:"Name a popular Halloween costume", mult:1, a:[["Witch",28],["Vampire",18],["Ghost",14],["Zombie",11],["Superhero",9],["Pirate",7],["Skeleton",5],["Princess",4]] },
-  { q:"Name something you'd find in a haunted house", mult:1, a:[["Ghosts",32],["Cobwebs",20],["Skeletons",14],["Creaky doors",11],["Bats",8],["Coffins",6]] },
-  { q:"Name a candy you hope to get while trick-or-treating", mult:1, a:[["Reese's",30],["Snickers",22],["Kit Kat",16],["M&M's",11],["Twix",9],["Candy corn",5],["Skittles",4]] },
-  { q:"Name something a vampire is afraid of", mult:1, a:[["Garlic",38],["Sunlight",26],["Crosses",15],["Wooden stake",10],["Holy water",6],["Mirrors",3]] },
-  { q:"Name a sound you'd hear in a haunted house", mult:1, a:[["Screaming",30],["Creaking",24],["Rattling chains",14],["Howling",12],["Evil laugh",8],["Footsteps",6]] },
-  { q:"Name a food or drink at a Halloween party", mult:1, a:[["Candy",25],["Punch",20],["Caramel apples",15],["Pumpkin pie",12],["Cupcakes",10],["Popcorn",8],["Apple cider",5]] },
-  { q:"Name a creature that comes out at night", mult:2, a:[["Bats",34],["Owls",22],["Werewolves",16],["Vampires",12],["Raccoons",8],["Ghosts",5]] },
-  { q:"Name something a witch would have", mult:3, a:[["Broom",40],["Cauldron",22],["Black cat",14],["Pointy hat",11],["Spell book",7],["Wand",3]] },
+const GAMES = [
+  { // GAME 1
+    rounds:[
+      { q:"Name a popular Halloween costume", mult:1, a:[["Witch",28],["Vampire",18],["Ghost",14],["Zombie",11],["Superhero",9],["Pirate",7],["Skeleton",5],["Princess",4]] },
+      { q:"Name something a vampire is afraid of", mult:2, a:[["Garlic",38],["Sunlight",26],["Crosses",15],["Wooden stake",10],["Holy water",6],["Mirrors",3]] },
+      { q:"Name something a witch would have", mult:3, a:[["Broom",40],["Cauldron",22],["Black cat",14],["Pointy hat",11],["Spell book",7],["Wand",3]] },
+    ],
+    bonus:[
+      { q:"Name a color you see a lot on Halloween", a:[["Orange",45],["Black",35],["Purple",8],["Green",6],["White",3]] },
+      { q:"Name something that's orange", a:[["Pumpkin",50],["Carrot",18],["An orange",15],["Candy corn",8],["Cheese",4]] },
+      { q:"Name a word that rhymes with \"boo\"", a:[["Who",22],["Zoo",20],["Shoe",18],["Moo",14],["Glue",10],["Blue",8]] },
+      { q:"Name something you'd find in a graveyard", a:[["Tombstones",52],["Flowers",16],["Ghosts",12],["Shovel",8],["Zombies",5],["Bones",4]] },
+      { q:"Name a scary place to be alone at night", a:[["Woods",34],["Cemetery",28],["Basement",14],["Haunted house",10],["Dark alley",8],["Attic",4]] },
+    ]
+  },
+  { // GAME 2
+    rounds:[
+      { q:"Name something you'd find in a haunted house", mult:1, a:[["Ghosts",32],["Cobwebs",20],["Skeletons",14],["Creaky doors",11],["Bats",8],["Coffins",6]] },
+      { q:"Name a candy you hope to get while trick-or-treating", mult:2, a:[["Reese's",30],["Snickers",22],["Kit Kat",16],["M&M's",11],["Twix",9],["Candy corn",5],["Skittles",4]] },
+      { q:"Name something you'd find in a witch's cauldron", mult:3, a:[["Eye of newt",30],["Frogs",22],["Bones",15],["Potion",12],["Snakes",9],["Bat wings",7]] },
+    ],
+    bonus:[
+      { q:"Name a famous monster", a:[["Frankenstein",35],["Dracula",25],["Werewolf",15],["Mummy",10],["Godzilla",8]] },
+      { q:"Name something with fangs", a:[["Vampire",40],["Snake",28],["Wolf",14],["Spider",8],["Bat",6]] },
+      { q:"Name a reason the lights might go out on Halloween night", a:[["Storm",40],["Power outage",28],["Ghosts",14],["Prank",10],["Blown fuse",5]] },
+      { q:"Name something you carry when trick-or-treating", a:[["Bag",48],["Flashlight",22],["Pillowcase",12],["Bucket",10],["Phone",5]] },
+      { q:"Name something a skeleton is missing", a:[["Skin",38],["Muscles",24],["Organs",14],["Eyes",10],["Hair",8]] },
+    ]
+  },
+  { // GAME 3
+    rounds:[
+      { q:"Name a sound you'd hear in a haunted house", mult:1, a:[["Screaming",30],["Creaking",24],["Rattling chains",14],["Howling",12],["Evil laugh",8],["Footsteps",6]] },
+      { q:"Name something people do at a Halloween party", mult:2, a:[["Bob for apples",30],["Dance",22],["Costume contest",16],["Eat candy",12],["Watch scary movies",9],["Tell ghost stories",6]] },
+      { q:"Name a creature that comes out at night", mult:3, a:[["Bats",34],["Owls",22],["Werewolves",16],["Vampires",12],["Raccoons",8],["Ghosts",5]] },
+    ],
+    bonus:[
+      { q:"Name a Halloween decoration", a:[["Pumpkin",40],["Skeleton",20],["Spider webs",15],["Ghost",10],["Tombstone",8]] },
+      { q:"Name something that's black", a:[["Black cat",34],["Night sky",22],["Bat",16],["Crow",12],["Coal",8]] },
+      { q:"Name a fall activity", a:[["Apple picking",32],["Hayride",24],["Raking leaves",18],["Corn maze",12],["Football",8]] },
+      { q:"Name a reason someone might scream", a:[["Scared",50],["Surprised",20],["Hurt",12],["Excited",9],["Saw a spider",5]] },
+      { q:"Name something you'd find in a pumpkin patch", a:[["Pumpkins",55],["Hay bales",15],["Scarecrow",12],["Vines",8],["Corn stalks",5]] },
+    ]
+  },
+  { // GAME 4
+    rounds:[
+      { q:"Name a food or drink at a Halloween party", mult:1, a:[["Candy",25],["Punch",20],["Caramel apples",15],["Pumpkin pie",12],["Cupcakes",10],["Popcorn",8],["Apple cider",5]] },
+      { q:"Name a reason a kid might skip trick-or-treating", mult:2, a:[["Sick",34],["Bad weather",22],["Too old",16],["Grounded",11],["Scared",8],["Homework",5]] },
+      { q:"Name something that might give you goosebumps", mult:3, a:[["Cold air",31],["Scary movie",25],["Strange noise",16],["Spiders",11],["A song",8],["Ghost story",5]] },
+    ],
+    bonus:[
+      { q:"Name an animal associated with Halloween", a:[["Black cat",45],["Bat",28],["Spider",12],["Owl",7],["Wolf",5]] },
+      { q:"Name something that glows in the dark", a:[["Jack-o'-lantern",30],["Glow stick",26],["Moon",15],["Fireflies",12],["Ghost",8]] },
+      { q:"Name something people bob for", a:[["Apples",82],["Donuts",8],["Candy",5],["Pears",3]] },
+      { q:"Name a word that means \"scary\"", a:[["Creepy",30],["Spooky",28],["Frightening",16],["Terrifying",12],["Eerie",8]] },
+      { q:"Name something a mummy is wrapped in", a:[["Bandages",58],["Toilet paper",20],["Cloth",12],["Gauze",6],["Linen",3]] },
+    ]
+  },
 ];
-
-const BONUS = [
-  { q:"Name a color you see a lot on Halloween", a:[["Orange",45],["Black",35],["Purple",8],["Green",6],["White",3]] },
-  { q:"Name something that's orange", a:[["Pumpkin",50],["Carrot",18],["An orange",15],["Candy corn",8],["Cheese",4]] },
-  { q:"Name a word that rhymes with \"boo\"", a:[["Who",22],["Zoo",20],["Shoe",18],["Moo",14],["Glue",10],["Blue",8]] },
-  { q:"Name something you'd find in a graveyard", a:[["Tombstones",52],["Flowers",16],["Ghosts",12],["Shovel",8],["Zombies",5],["Bones",4]] },
-  { q:"Name a scary place to be alone at night", a:[["Woods",34],["Cemetery",28],["Basement",14],["Haunted house",10],["Dark alley",8],["Attic",4]] },
-];
+let ROUNDS=GAMES[0].rounds, BONUS=GAMES[0].bonus;
 
 /* ---------------- sound (no files needed) ---------------- */
 let AC=null, soundOn=true;
@@ -370,8 +435,21 @@ const SFX={
 const S={
   teams:[{name:"",score:0,strikes:0},{name:"",score:0,strikes:0}],
   r:0, revealed:new Set(), pot:0, awarded:false, active:null, buzz:null,
-  multOverride:{}, showQ:true
+  multOverride:{}, showQ:true, g:0, started:false
 };
+let RESULTS=[];
+function validResults(value){
+  return Array.isArray(value)&&value.length<=GAMES.length&&new Set(value.map(r=>r&&r.game)).size===value.length&&value.every(r=>
+    r&&Number.isInteger(r.game)&&r.game>=1&&r.game<=GAMES.length&&
+    [r.t1,r.t2].every(n=>typeof n==="string"&&n.length<=60)&&
+    [r.s1,r.s2].every(n=>Number.isInteger(n)&&Math.abs(n)<=999999)&&
+    Number.isInteger(r.bonus)&&r.bonus>=0&&r.bonus<=9990);
+}
+try{ const saved=JSON.parse(localStorage.getItem("frightFeudResults")||"[]"); if(validResults(saved)) RESULTS=saved; }catch(e){}
+function saveResults(){
+  try{ localStorage.setItem("frightFeudResults",JSON.stringify(RESULTS)); }
+  catch(e){ $("resultStatus").textContent="Browser storage is unavailable. Keep this window open to retain results."; }
+}
 const $=id=>document.getElementById(id);
 
 function show(screen){
@@ -380,13 +458,73 @@ function show(screen){
   $("navBonus").classList.toggle("on",screen==="bonus");
 }
 
+function renderSetup(){
+  const pick=$("gamePick"); pick.innerHTML="";
+  GAMES.forEach((_,i)=>{
+    const b=document.createElement("button");
+    const done=RESULTS.some(r=>r.game===i+1);
+    b.className="btn"+(i===S.g?" sel":"")+(done?" done":"");
+    b.textContent="Game "+(i+1)+(done?" ✓":"");
+    b.setAttribute("aria-pressed",String(i===S.g));
+    b.onclick=()=>selectGame(i);
+    pick.appendChild(b);
+  });
+  $("startBtn").textContent="Start game "+(S.g+1);
+  $("results").classList.toggle("hidden",!RESULTS.length);
+  const tb=$("resultsBody"); tb.innerHTML="";
+  RESULTS.forEach(r=>{
+    const tr=document.createElement("tr");
+    const w=r.s1===r.s2?"Tie":(r.s1>r.s2?r.t1:r.t2);
+    [["Game "+r.game,""],[`${r.t1} ${r.s1} – ${r.s2} ${r.t2}`,""],["Winner: "+w,"w"],["Bonus: "+r.bonus+(r.bonus>=200?" ✓":""),""]]
+      .forEach(([txt,c])=>{ const td=document.createElement("td"); td.textContent=txt; if(c) td.className=c; tr.appendChild(td); });
+    tb.appendChild(tr);
+  });
+}
+function selectGame(i){
+  if(!Number.isInteger(i)||i<0||i>=GAMES.length) return;
+  S.g=i; ROUNDS=GAMES[i].rounds; BONUS=GAMES[i].bonus;
+  stopTimer(); cancelBonusReveals(); S.started=false; S.multOverride={}; S.showQ=true;
+  S.teams.forEach(t=>{t.score=0;t.strikes=0;});
+  FM.left=20; drawTimer(); loadRound(0); fmInit(); renderSetup();
+}
+function goSetup(){ stopTimer(); renderSetup(); show("setup"); }
+
 $("startBtn").onclick=()=>{
   S.teams[0].name=$("t1").value.trim()||"Team 1";
   S.teams[1].name=$("t2").value.trim()||"Team 2";
+  S.teams.forEach(t=>{ t.score=0; t.strikes=0; });
+  ROUNDS=GAMES[S.g].rounds; BONUS=GAMES[S.g].bonus;
+  S.multOverride={}; S.showQ=true; S.started=true;
+  stopTimer(); FM.left=20; drawTimer(); fmInit();
   ac(); loadRound(0); show("game");
 };
-$("navGame").onclick=()=>{ if(!S.teams[0].name) return; show("game"); };
-$("navBonus").onclick=()=>{ if(!S.teams[0].name) return; show("bonus"); };
+$("navNew").onclick=()=>{
+  if(S.started && !confirm("Leave this game and go to the game picker? Scores for this game won't be saved unless you press Finish game in the bonus round.")) return;
+  goSetup();
+};
+$("navGame").onclick=()=>{ if(!S.started) return; show("game"); };
+$("navBonus").onclick=()=>{ if(!S.started) return; goBonus(); };
+function leader(){ const [a,b]=S.teams; return a.score===b.score?null:(a.score>b.score?a:b); }
+function goBonus(){
+  const l=leader();
+  $("playingFor").textContent=l?`Playing for ${l.name}`:"Scores are tied. The host picks who plays.";
+  show("bonus");
+}
+function finishGame(){
+  if(!S.started) return;
+  stopTimer(); cancelBonusReveals();
+  RESULTS=RESULTS.filter(r=>r.game!==S.g+1);
+  RESULTS.push({game:S.g+1,t1:S.teams[0].name,s1:S.teams[0].score,t2:S.teams[1].name,s2:S.teams[1].score,bonus:fmTotal()});
+  RESULTS.sort((a,b)=>a.game-b.game); saveResults();
+  S.started=false;
+  const next=GAMES.findIndex((_,i)=>!RESULTS.some(r=>r.game===i+1));
+  selectGame(next===-1?S.g:next);
+  $("t1").value=""; $("t2").value="";
+  goSetup();
+}
+function clearResults(){ RESULTS=[]; saveResults(); selectGame(0); renderSetup(); }
+$("finishBtn").onclick=()=>{ if(confirm(`Save Game ${S.g+1} result and return to the game picker?`)) finishGame(); };
+$("clearResults").onclick=()=>{ if(confirm("Clear all saved results?")) clearResults(); };
 $("soundBtn").onclick=()=>{ soundOn=!soundOn; $("soundBtn").textContent=soundOn?"Sound on":"Sound off"; $("soundBtn").classList.toggle("on",soundOn); };
 $("fsBtn").onclick=async()=>{
   const root=document.documentElement;
@@ -486,7 +624,8 @@ function render(){
   const m=mult();
   $("multLbl").textContent=m>1?(m===2?"Double points":"Triple points"):"";
   $("multBtn").textContent="Points ×"+m;
-  $("rndLbl").textContent=`Round ${S.r+1} of ${ROUNDS.length}`;
+  $("rndLbl").textContent=`Game ${S.g+1} · Round ${S.r+1} of ${ROUNDS.length}`;
+  $("nextBtn").textContent=S.r===ROUNDS.length-1?"Go to bonus round":"Next round";
   const q=$("qText");
   q.textContent=S.showQ?ROUNDS[S.r].q:"Question hidden — host, read it aloud";
   q.classList.toggle("veiled",!S.showQ);
@@ -502,7 +641,7 @@ document.querySelectorAll("[data-adjust]").forEach(b=>b.onclick=e=>{
 });
 $("award0").onclick=()=>award(0);
 $("award1").onclick=()=>award(1);
-$("nextBtn").onclick=()=>loadRound(S.r+1);
+$("nextBtn").onclick=()=>{ if(S.r===ROUNDS.length-1) goBonus(); else loadRound(S.r+1); };
 $("prevBtn").onclick=()=>loadRound(S.r-1);
 $("revealAll").onclick=()=>{ ROUNDS[S.r].a.forEach((_,i)=>{ if(!S.revealed.has(i)){ S.revealed.add(i); $("board").children[i].classList.add("flipped"); } }); SFX.ding(); render(); };
 $("resetBuzz").onclick=()=>{ S.buzz=null; render(); };
@@ -585,7 +724,7 @@ function revealRow(p,i){
 function sendState(rebuild=false){
   if(!hostWin||hostWin.closed) return;
   try{
-    hostWin.postMessage({ff:"game",rebuild,left:FM.left,mask:FM.mask,total:fmTotal(),rows:FM.rows},"*");
+    hostWin.postMessage({ff:"game",rebuild,bonus:rebuild?BONUS:null,game:S.g+1,left:FM.left,mask:FM.mask,total:fmTotal(),rows:FM.rows},"*");
   }catch(e){}
 }
 setInterval(()=>sendState(),300);
@@ -650,7 +789,7 @@ function hostPanelHTML(){
  .acts{display:flex;gap:.4rem;align-items:center;margin-top:.45rem;flex-wrap:wrap}
  .st{font-size:.85rem;color:#bba6c9;margin-left:auto}
 </style></head><body>
-<h1>Bonus round host controls</h1>
+<h1>Bonus round host controls · <span id="gm"></span></h1>
 <p class="tip">Keep this window on your own screen, not the TV. Typing here shows nothing to the audience until you press Reveal.
 Typing an answer that matches the survey fills in the points for you; you can change them.</p>
 <div class="bar">
@@ -733,6 +872,8 @@ function sync(){
 window.addEventListener("message",function(e){
   var m=e.data; if(!m||m.ff!=="game"||e.source!==window.opener) return;
   STATE=m; lastHeard=Date.now();
+  if(m.bonus) BONUS=m.bonus;
+  if(m.game) document.getElementById("gm").textContent="Game "+m.game;
   if(m.rebuild||!built) buildHost();
   sync();
 });
@@ -778,8 +919,9 @@ function answerKeyHTML(){
   <p class="tip">For the host only. Print it, or keep this window on a second screen while the game shows on the TV.
   The number next to each answer is the key to press to reveal it.</p>
   <button onclick="print()">Print answer key</button>
-  <h3>Main game</h3><div class="grid">${block("Round",ROUNDS)}</div>
-  <h3>Bonus round</h3><div class="grid">${block("Question",BONUS)}</div>
+  ${GAMES.map((g,n)=>`<h3 style="font-size:1.4rem;border-bottom:2px solid #b34a00;padding-bottom:.2rem">Game ${n+1}</h3>
+  <h3>Rounds</h3><div class="grid">${block("Round",g.rounds)}</div>
+  <h3>Bonus round</h3><div class="grid">${block("Question",g.bonus)}</div>`).join(`<div style="break-after:page"></div>`)}
   </body></html>`;
 }
 $("keyBtn").onclick=()=>{
@@ -803,6 +945,7 @@ document.addEventListener("keydown",e=>{
 });
 
 fmInit();
+renderSetup();
 </script>
 <script src="assets/vendor/qrcode.js"></script>
 <script src="assets/phone-board.js"></script>

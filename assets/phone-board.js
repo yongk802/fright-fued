@@ -121,13 +121,14 @@
   }
   function snapshot() {
     return {
-      version: 1,
+      version: 2,
+      series: { game: S.g, started: S.started, results: RESULTS.map(r => ({...r})) },
       screen:
         ["setup", "game", "bonus"].find(
           (id) => !$(id).classList.contains("hidden"),
         ) || "setup",
       main: {
-        ...S,
+        ...Object.fromEntries(Object.entries(S).filter(([key]) => !["g", "started"].includes(key))),
         teams: S.teams.map((t) => ({ ...t })),
         revealed: [...S.revealed],
         multOverride: { ...S.multOverride },
@@ -144,7 +145,14 @@
     };
   }
   function restore(state) {
-    if (!state || state.version !== 1) return;
+    if (!state || ![1,2].includes(state.version)) return;
+    // Old eight-round snapshots cannot map safely onto the new three-round games.
+    if (state.version === 1) return;
+    S.g = state.series.game;
+    S.started = state.series.started;
+    ROUNDS = GAMES[S.g].rounds;
+    BONUS = GAMES[S.g].bonus;
+    if (validResults(state.series.results)) RESULTS = state.series.results;
     stopTimer();
     cancelBonusReveals();
     Object.assign(S, state.main);
@@ -160,7 +168,8 @@
     render();
     fmRender();
     drawTimer();
-    show(state.screen);
+    renderSetup();
+    if (state.screen === "bonus") goBonus(); else show(state.screen);
     sendState(true);
   }
   const integer = (v, low, high) =>
@@ -168,7 +177,7 @@
   function execute(command) {
     const a = command.args,
       action = command.action;
-    if (!a || typeof a !== "object") return;
+    if (!a || typeof a !== "object" || command.game !== S.g) return;
     const team = integer(a.team, 0, 1),
       row =
         integer(a.p, 0, 1) && integer(a.i, 0, BONUS.length - 1)
@@ -180,6 +189,15 @@
     )
       return;
     switch (action) {
+      case "selectGame":
+        if (!$("setup").classList.contains("hidden") && integer(a.game, 0, GAMES.length-1)) selectGame(a.game);
+        break;
+      case "finishGame":
+        finishGame();
+        break;
+      case "clearResults":
+        if (!$("setup").classList.contains("hidden")) clearResults();
+        break;
       case "start":
         if (
           !Array.isArray(a.names) ||
@@ -193,7 +211,9 @@
         $("startBtn").onclick();
         break;
       case "screen":
-        if (["setup", "game", "bonus"].includes(a.screen)) show(a.screen);
+        if (a.screen === "setup") goSetup();
+        else if (S.started && a.screen === "bonus") goBonus();
+        else if (S.started && a.screen === "game") show("game");
         break;
       case "round":
         if (integer(a.i, 0, ROUNDS.length - 1)) loadRound(a.i);
@@ -388,6 +408,7 @@
           : paired
           ? "Phone disconnected · Reconnect on your phone or use Connect phone"
           : "Phone hosting ready · Connect phone to begin";
+      if (result.storage_warning) status.textContent += " · " + result.storage_warning;
       for (const command of result.commands) {
         if (!seen.has(command.id)) {
           seen.add(command.id);
@@ -416,6 +437,11 @@
       const claimed = await api("claim", {});
       lease = claimed.lease;
       restore(claimed.state);
+      if (validResults(claimed.results)) {
+        RESULTS = claimed.results;
+        saveResults();
+        renderSetup();
+      }
       await pairingInfo();
       audience(info.host_connected || wasPaired());
       sync();

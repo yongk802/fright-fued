@@ -70,7 +70,7 @@ def main():
             def board_wait(expression):
                 board.wait_for_function(expression)
             def post(identifier, action, payload, generation=None):
-                envelope = {'id':identifier, 'action':action, 'args':payload}
+                envelope = {'id':identifier, 'action':action, 'args':payload, 'game':board.evaluate('S.g')}
                 if action == 'bonusSet':
                     if generation is None:
                         generation = phone.request.get(origin + '/phone/state', headers={'Authorization': 'Bearer ' + host_token}).json()['generation']
@@ -331,6 +331,36 @@ def main():
             phone.once('dialog', lambda dialog: dialog.accept())
             phone.get_by_role('button', name='Clear bonus board', exact=True).click()
             newer.wait_for_function("FM.rows[0][0].text === '' && FM.left === 20")
+            # The entire four-game series can be hosted privately on the phone.
+            phone.once('dialog', lambda dialog: dialog.accept())
+            phone.get_by_role('button', name='New game', exact=True).click()
+            expect(phone.locator('#gameSelect')).to_be_visible()
+            phone.locator('#gameSelect').select_option('1')
+            newer.wait_for_function('S.g === 1')
+            phone.locator('#start').click()
+            newer.wait_for_function('S.started && ROUNDS.length === 3')
+            phone.get_by_role('button', name='Bonus round', exact=True).click()
+            expect(phone.locator('body')).to_contain_text('Name a famous monster')
+            phone.locator('#text0_0').fill('Frankenstein')
+            newer.wait_for_function('FM.rows[0][0].pts === 35')
+            phone.locator('.bonus-row').first.locator('[data-action="bonusReveal"]').click()
+            newer.wait_for_function('FM.rows[0][0].ptsShown')
+            phone.once('dialog', lambda dialog: dialog.accept())
+            phone.get_by_role('button', name='Finish game and save result', exact=True).click()
+            expect(phone.locator('.saved-results')).to_contain_text('Game 2')
+            expect(phone.locator('.saved-results')).to_contain_text('Bonus: 35')
+            newer.reload()
+            newer.locator('#splash').click()
+            newer.wait_for_function('RESULTS.length === 1 && RESULTS[0].game === 2')
+            phone.reload()
+            expect(phone.locator('.saved-results')).to_contain_text('Bonus: 35')
+            phone.evaluate('scrollTo(0,0)')
+            shot(phone, 'phone-series-results.png')
+            assert phone.evaluate('document.documentElement.scrollWidth <= innerWidth')
+            phone.once('dialog', lambda dialog: dialog.accept())
+            phone.get_by_role('button', name='Clear saved results', exact=True).click()
+            newer.wait_for_function('RESULTS.length === 0')
+            expect(phone.locator('.saved-results')).to_have_count(0)
             with newer.context.expect_page(timeout=3000) as final_pairing:
                 newer.get_by_role('button', name='Connect phone', exact=True).click()
             pairing = final_pairing.value
@@ -339,6 +369,11 @@ def main():
             with pairing.expect_event('close', timeout=5000):
                 phone.get_by_role('button', name='Disconnect phone', exact=True).click()
             expect(phone.locator('#connection')).to_contain_text('Phone disconnected')
+            expect(newer.locator('body')).not_to_have_class('phone-audience')
+            expect(newer.locator('#startBtn')).to_be_visible()
+            shot(newer, 'board-series-setup.png')
+            newer.locator('#startBtn').click()
+            newer.locator('#navBonus').click()
             expect(newer.locator('#hostPanelBtn')).to_be_visible()
             new_info = json.load(urlopen(Request(origin + '/phone/info', headers={'Authorization': 'Bearer ' + nonce})))
             assert new_info['host_token'] != host_token

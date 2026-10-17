@@ -253,7 +253,7 @@ def test_claim_sync_dedup_ack_and_refresh_recovery(servers):
     assert sync(proxy, lease, ack=['command_1'])[1]['commands'] == []
     assert command(proxy, token)[0] == 200
     assert sync(proxy, lease)[1]['commands'] == []
-    assert api(proxy, '/phone/state', token=token)[1] == {'state': snapshot(), 'board_connected': True, 'generation': 0}
+    assert api(proxy, '/phone/state', token=token)[1] == {'state': snapshot(), 'board_connected': True, 'generation': 0, 'storage_warning': ''}
     status, replacement = api(proxy, '/phone/claim', 'POST', {})
     assert replacement['state'] == snapshot()
     assert replacement['lease'] != lease
@@ -492,3 +492,80 @@ def test_unacknowledged_disconnect_deliveries_have_a_bounded_capacity(servers):
     assert command(proxy, token, identifier='ordinary', action='question')[0] == 200
     assert sync(proxy, lease, ack=['disconnect_0'])[0] == 200
     assert api(proxy, '/phone/state', token=token)[0] == 403
+
+
+def series_snapshot():
+    state = snapshot()
+    state['version'] = 2
+    state['series'] = {'game': 0, 'started': False, 'results': []}
+    return state
+
+
+def test_series_schema_and_stale_game_commands():
+    state = series_snapshot()
+    assert phone.valid_state(state)
+    command = {'id': 'select-game-test', 'action': 'selectGame', 'args': {'game': 3}, 'game': 0}
+    assert phone.valid_command(command, state)
+    command['game'] = 1
+    assert not phone.valid_command(command, state)
+    command['game'] = 0
+    command['args']['game'] = 4
+    assert not phone.valid_command(command, state)
+    state['series']['results'] = [{'game': 1, 't1': 'Owls', 't2': 'Ghouls', 's1': 123, 's2': 40, 'bonus': 200}]
+    assert phone.valid_state(state)
+    state['series']['results'] *= 2
+    assert not phone.valid_state(state)
+
+
+def test_series_results_survive_companion_restart(tmp_path):
+    path = tmp_path / 'results.json'
+    server = phone.make_server(8770, nonce=NONCE, results_path=path)
+    try:
+        result = [{'game': 1, 't1': 'Owls', 't2': 'Ghouls', 's1': 123, 's2': 40, 'bonus': 200}]
+        server.save_results(result)
+    finally:
+        server.server_close()
+    server = phone.make_server(8770, nonce=NONCE, results_path=path)
+    try:
+        assert server.results == result
+        assert path.stat().st_mode & 0o777 == 0o600
+    finally:
+        server.server_close()
+
+
+def test_result_write_failure_keeps_phone_transport_alive(servers, monkeypatch):
+    _, proxy, _ = servers
+    lease = claim(proxy)
+    def fail(_): raise OSError('Disk full')
+    monkeypatch.setattr(proxy, 'save_results', fail)
+    status, value = sync(proxy, lease, series_snapshot())
+    assert status == 200
+    assert value['storage_warning']
+    assert proxy.state['version'] == 2
+    assert proxy.connected(proxy.board_seen)
+
+
+def test_corrupt_results_do_not_prevent_hosting(tmp_path):
+    path = tmp_path / 'results.json'
+    path.write_text('broken json')
+    server = phone.make_server(8770, nonce=NONCE, results_path=path)
+    try:
+        assert server.results is None
+        assert server.storage_warning
+        assert path.read_text() == 'broken json'
+    finally:
+        server.server_close()
+
+
+def test_claim_keeps_in_memory_results_after_disk_failure(servers, monkeypatch):
+    _, proxy, _ = servers
+    proxy.results = []
+    lease = claim(proxy)
+    def fail(_): raise OSError('Disk full')
+    monkeypatch.setattr(proxy, 'save_results', fail)
+    state = series_snapshot()
+    state['series']['results'] = [{'game': 1, 't1': 'Owls', 't2': 'Ghouls', 's1': 123, 's2': 40, 'bonus': 200}]
+    assert sync(proxy, lease, state)[0] == 200
+    status, value = api(proxy, '/phone/claim', 'POST', {})
+    assert status == 200
+    assert value['results'] == state['series']['results']

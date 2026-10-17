@@ -10,6 +10,7 @@
     layout = "",
     counter = 0,
     generation = 0,
+    selectingGame = null,
     intentEpoch = 0,
     sending = false,
     reconcileFields = false,
@@ -78,12 +79,13 @@
   function enabled(value) {
     online = value;
     if (!value) {
+      selectingGame = null;
       // Connection recovery starts with fresh user intent, never an old backlog.
       discardCommands();
       discardDrafts();
     }
     host.querySelectorAll("button,input,select").forEach((el) => {
-      el.disabled = !value || el.dataset.unavailable === "true";
+      el.disabled = !value || selectingGame !== null || el.dataset.unavailable === "true";
     });
   }
   function send(action, args = {}) {
@@ -107,6 +109,7 @@
       action,
       args: JSON.parse(JSON.stringify(args)),
     };
+    if (state && state.series) command.game = state.series.game;
     if (action === "bonusSet") command.generation = generation;
     return new Promise((resolve) => {
       commands.push({ command, resolve, queuedAt: Date.now() });
@@ -274,7 +277,7 @@
       m = s.main,
       b = s.bonus,
       round = s.rounds[m.r];
-    const key = s.screen + ":" + m.r;
+    const key = s.screen + ":" + m.r + ":" + (s.series ? s.series.game + ":" + JSON.stringify(s.series.results) : "legacy");
     if (layout !== key) {
       // New DOM fields always start from board data, never detached-input draft metadata.
       dirty.clear();
@@ -283,7 +286,7 @@
       const nav =
         s.screen === "setup"
           ? ""
-          : `<nav>${button("Main game", "screen", { screen: "game" }, s.screen === "game" ? 'class="chosen"' : "")}${button("Bonus round", "screen", { screen: "bonus" }, s.screen === "bonus" ? 'class="chosen"' : "")}</nav>`;
+          : `<nav>${button("Main game", "screen", { screen: "game" }, s.screen === "game" ? 'class="chosen"' : "")}${button("Bonus round", "screen", { screen: "bonus" }, s.screen === "bonus" ? 'class="chosen"' : "")}${s.series ? button("New game", "screen", {screen:"setup"}) : ""}</nav>`;
       let content = "";
       if (s.screen === "setup")
         content = /* HTML */ `<section>
@@ -292,6 +295,7 @@
             Name your teams, then host the whole game here. Answers stay private
             until you reveal them.
           </p>
+          ${s.series ? `<label for="gameSelect">Choose a game · 3 rounds + bonus</label><select id="gameSelect">${[0,1,2,3].map(i=>`<option value="${i}" ${i===s.series.game?"selected":""}>Game ${i+1}${s.series.results.some(r=>r.game===i+1)?" · Played":""}</option>`).join("")}</select>` : ""}
           <label for="teamName0">Team 1 name</label
           ><input id="teamName0" maxlength="60" value="The Ghouls" /><label
             for="teamName1"
@@ -300,11 +304,12 @@
           <div class="row">
             <button id="start" class="primary">Start the game</button>
           </div>
+          ${s.series && s.series.results.length ? `<div class="saved-results"><h3>Results so far</h3>${s.series.results.map(r=>`<div class="saved-result"><strong>Game ${r.game} · ${r.s1===r.s2?"Tie":esc(r.s1>r.s2?r.t1:r.t2)+" wins"}</strong><p>${esc(r.t1)} ${r.s1} – ${r.s2} ${esc(r.t2)}<br>Bonus: ${r.bonus}${r.bonus>=200?" ✓":""}</p></div>`).join("")}${button("Clear saved results","clearResults",{},'class="danger"')}</div>` : ""}
         </section>`;
       if (s.screen === "game")
         content = /* HTML */ `<section>
             <div class="muted">
-              ROUND ${m.r + 1} OF ${s.rounds.length} · PRIVATE ANSWERS
+              ${s.series ? "GAME "+(s.series.game+1)+" · " : ""}ROUND ${m.r + 1} OF ${s.rounds.length} · PRIVATE ANSWERS
             </div>
             <h2>${esc(round.q)}</h2>
             <div class="pot" id="pot"></div>
@@ -323,7 +328,7 @@
               ${s.rounds.map((r, i) => `<option value="${i}">${i + 1}. ${esc(r.q)}</option>`).join("")}
             </select>
             <div class="row">
-              ${button("Previous", "round", { i: Math.max(0, m.r - 1) }, m.r === 0 ? 'data-unavailable="true"' : "")}${button("Next round", "round", { i: Math.min(s.rounds.length - 1, m.r + 1) }, m.r === s.rounds.length - 1 ? 'data-unavailable="true"' : "")}
+              ${button("Previous", "round", { i: Math.max(0, m.r - 1) }, m.r === 0 ? 'data-unavailable="true"' : "")}${m.r === s.rounds.length - 1 ? button("Go to bonus round", "screen", {screen:"bonus"}) : button("Next round", "round", { i: m.r + 1 })}
             </div>
             <div class="row">
               ${button("Hide question", "question", {}, 'id="question"')}${button("Points ×1", "multiplier", {}, 'id="multiplier"')}
@@ -335,7 +340,8 @@
       if (s.screen === "bonus")
         content = /* HTML */ `<section>
             <div class="muted">FAST FRIGHT · PRIVATE ANSWERS</div>
-            <h2>Bonus round</h2>
+            <h2>${s.series ? "Game "+(s.series.game+1)+" · " : ""}Bonus round</h2>
+            ${s.series ? `<p class="muted">${m.teams[0].score===m.teams[1].score?"Scores are tied. The host picks who plays.":"Playing for "+esc(m.teams[m.teams[0].score>m.teams[1].score?0:1].name)}</p>` : ""}
             <div class="timer" id="time"></div>
             <p id="bonusTotal"></p>
             <div class="row timer-controls">
@@ -353,6 +359,7 @@
           <section>
             <div class="row">
               ${button("Sound on", "sound", {}, 'id="sound"')}${button("Clear bonus board", "bonusReset", {}, 'class="danger"')}
+              ${s.series ? button("Finish game and save result", "finishGame", {}, 'class="primary"') : ""}
             </div>
           </section>`;
       host.innerHTML =
@@ -446,7 +453,13 @@
     }
     scheduleSave(row);
   });
-  host.addEventListener("change", (e) => {
+  host.addEventListener("change", async (e) => {
+    if (e.target.id === "gameSelect") {
+      selectingGame = +e.target.value;
+      const pending = send("selectGame", {game:selectingGame});
+      enabled(online);
+      if (!(await pending)) { selectingGame = null; layout = ""; render(); }
+    }
     if (e.target.id === "roundSelect") send("round", { i: +e.target.value });
   });
   host.addEventListener("click", async (e) => {
@@ -484,6 +497,9 @@
     }
     const action = el.dataset.action;
     if (!action) return;
+    if (action === "finishGame" && !confirm("Save this game's result and return to the game picker?")) return;
+    if (action === "clearResults" && !confirm("Clear all saved results?")) return;
+    if (action === "screen" && JSON.parse(el.dataset.args || "{}").screen === "setup" && state.series && state.series.started && !confirm("Return to the game picker? Finish the game first to save its result.")) return;
     if (
       action === "bonusReset" &&
       !confirm("Clear every bonus-round answer and reset the timer?")
@@ -500,7 +516,7 @@
       saves.clear();
       dirty.clear();
     }
-    if (["bonusRevealAll", "screen"].includes(action)) {
+    if (["bonusRevealAll", "screen", "finishGame"].includes(action)) {
       // Flush edits before revealing a whole player or removing the entry fields.
       for (const pendingRow of host.querySelectorAll(".bonus-row")) {
         const key = pendingRow.dataset.p + "_" + pendingRow.dataset.i;
@@ -529,7 +545,13 @@
       const result = await api("state");
       if (ended) return; // A poll already in flight must not undo explicit disconnect.
       updateGeneration(result.generation);
-      state = result.state;
+      const next = result.state;
+      if (state && state.series && next && next.series && state.series.game !== next.series.game) {
+        discardCommands();
+        discardDrafts();
+      }
+      if (next && next.series && next.series.game === selectingGame) selectingGame = null;
+      state = next;
       online = Boolean(result.board_connected && state);
       connection.textContent = online
         ? "Connected · Laptop is the contestant board"
@@ -537,6 +559,7 @@
       connection.classList.toggle("live", online);
       if (state) render();
       else enabled(false);
+      if (online && result.storage_warning) notice.textContent = result.storage_warning;
       if (online && draftsDiscarded) {
         notice.textContent =
           "Unsent edits were discarded; answers now match the laptop.";

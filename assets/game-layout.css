@@ -57,3 +57,10 @@ body .mrow input.t { flex-basis: 160px; }
 @media (max-width: 379px) {
   body .scorerow { grid-template-columns: minmax(0, 1fr); }
 }
+
+body #setup .results td { overflow-wrap: anywhere; }
+@media (max-width:760px) {
+  body #setup .results tr { display:grid; grid-template-columns: minmax(0,1fr); margin-bottom:.8rem; }
+  body #setup .results td { border-top:0; padding:.2rem .4rem; }
+  body #setup .results tr + tr { border-top:1px solid #4a1f60; padding-top:.5rem; }
+}

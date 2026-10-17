@@ -14,7 +14,7 @@ pull request and do not wait for review.
 
 ## 1. Make the change
 
-- The game is `index.html` (questions are `ROUNDS` and `BONUS`; styles and logic
+- The game is `index.html` (questions are the four `GAMES` sets, selected as `ROUNDS` and `BONUS`; styles and logic
   are inline). Follow `CLAUDE.md`: relative asset URLs only, no CDNs, no build
   step, keep the host window, hidden answers, popup sender checks and the older
   Safari fullscreen fallback working.

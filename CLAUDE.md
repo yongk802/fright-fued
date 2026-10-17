@@ -5,7 +5,7 @@ companion. Read README.md first.
 The repository name is `fright-fued`; the app ID is `fright-feud`. Keep that ID
 stable so App Engine installations continue to identify the same app.
 
-- `index.html`: supplied game, questions (`ROUNDS` and `BONUS`), styles, and logic.
+- `index.html`: supplied game, questions (`GAMES`, with selected `ROUNDS` and `BONUS`), styles, and logic.
 - `app.json`: portable engine manifest. No backend or build lifecycle is needed.
 - `fonts/`: local fonts and original OFL licenses. Preserve notices.
 - `scripts/package.py`: standard-library Python ZIP builder.
