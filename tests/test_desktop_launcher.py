@@ -10,6 +10,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
@@ -136,17 +137,19 @@ def run_launch(module, bundle, pids, **kwargs):
 
 
 class ExistingEngine:
-    def __init__(self, root, *, game=True, name="app-engine", url=None, roots=None):
+    def __init__(self, root, *, game=True, name="app-engine", url=None, roots=None, delays=None):
         self.game = game
         self.name = name
         self.url = url
         self.refreshes = 0
         self.root = root
         self.roots = roots
+        self.delays = delays or {}
         owner = self
         class Handler(BaseHTTPRequestHandler):
             def log_message(self, *args): pass
             def do_GET(self):
+                time.sleep(owner.delays.get(self.path, 0))
                 if self.path == "/api/engine": data = {"name": owner.name}
                 elif self.path == "/api/apps": data = ([{"id": "fright-feud", "url": owner.url or f"http://fright-feud.localhost:{self.server.server_port}/apps/fright-feud/#atrium_state_token=existing"}] if owner.game else [])
                 elif self.path == "/api/app-engine/studio/roots": data = owner.roots if owner.roots is not None else [{"root": str(root), "inspect": True, "create": True, "write": True}]
@@ -154,6 +157,7 @@ class ExistingEngine:
                 body = json.dumps(data).encode()
                 self.send_response(200); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
             def do_POST(self):
+                time.sleep(owner.delays.get(self.path, 0))
                 self.rfile.read(int(self.headers.get("Content-Length", 0)))
                 if self.path != "/api/app-engine/catalog/refresh": self.send_error(404); return
                 owner.refreshes += 1
@@ -230,6 +234,25 @@ def test_existing_engine_game_is_used_without_copying_game(bundle, started_engin
         assert result["pid"] is None
         assert existing.refreshes == 0
         assert not (home / "apps").exists()
+
+
+@pytest.mark.parametrize("route,game", [
+    ("/api/apps", True),
+    ("/api/app-engine/studio/roots", False),
+    ("/api/app-engine/catalog/refresh", False),
+])
+def test_existing_engine_with_slow_catalog_is_reused(bundle, started_engines, route, game):
+    _, _, home = bundle
+    root = home / "Existing Apps"
+    root.mkdir()
+    # A populated real engine can take over a second to enumerate its apps.
+    # Keep identity probing fast while allowing actual catalog work to finish.
+    with ExistingEngine(root, game=game, delays={route: 1.1}) as existing:
+        result = run_launch(launcher(), bundle, started_engines, preferred_port=existing.port)
+        assert result["reused_engine"] is True
+        assert result["engine_port"] == existing.port
+        assert result["installed_game"] is not game
+        assert existing.refreshes == (0 if game else 1)
 
 
 def test_existing_engine_receives_missing_game_and_preserves_existing_files(bundle, started_engines):

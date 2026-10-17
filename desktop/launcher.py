@@ -32,6 +32,7 @@ BUNDLE_ID = "com.yongk802.fright-feud"
 GAME_ID = "fright-feud"
 SUPPORT_PATH = Path("Library/Application Support/Fright Feud")
 MAX_JSON_BYTES = 2 * 1024 * 1024
+CATALOG_TIMEOUT = 10.0
 
 
 class LauncherError(RuntimeError):
@@ -246,7 +247,8 @@ def _probe(port: int) -> bool:
 
 
 def _game_url(port: int) -> str | None:
-    apps = _request(port, "/api/apps")
+    # A populated catalog does disk discovery; it needs more time than an identity probe.
+    apps = _request(port, "/api/apps", timeout=CATALOG_TIMEOUT)
     if not isinstance(apps, list):
         raise LauncherError("App Engine returned an invalid app catalog.")
     for item in apps:
@@ -285,7 +287,7 @@ def _install_game(source: Path, root: Path, home: Path, status) -> bool:
 
 def _install_into_running(port: int, source: Path, home: Path, status) -> tuple[str, bool] | None:
     try:
-        roots = _request(port, "/api/app-engine/studio/roots")
+        roots = _request(port, "/api/app-engine/studio/roots", timeout=CATALOG_TIMEOUT)
     except (OSError, ValueError, HTTPError, URLError):
         return None
     if not isinstance(roots, list):
@@ -301,7 +303,7 @@ def _install_into_running(port: int, source: Path, home: Path, status) -> tuple[
             continue
         installed = _install_game(source, root, home, status)
         try:
-            _request(port, "/api/app-engine/catalog/refresh", method="POST")
+            _request(port, "/api/app-engine/catalog/refresh", method="POST", timeout=CATALOG_TIMEOUT)
             url = _game_url(port)
         except (OSError, ValueError, HTTPError, URLError) as exc:
             raise LauncherError(f"The game was installed at {root / GAME_ID}, but App Engine could not refresh it: {exc}") from exc

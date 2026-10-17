@@ -9,7 +9,7 @@ AI model, account, or internet connection needed to play.
 
 ## One-click Mac app — App Engine included
 
-Download **[Fright-Feud-macOS.zip](https://github.com/yongk802/fright-fued/releases/download/v1.2.1/Fright-Feud-macOS.zip)**,
+Download **[Fright-Feud-macOS.zip](https://github.com/yongk802/fright-fued/releases/download/v1.2.2/Fright-Feud-macOS.zip)**,
 unzip it in Finder, and open **Fright Feud.app**. It supports Intel and Apple
 Silicon Macs running macOS 12.6 or later. Python, App Engine, their dependencies,
 and the game are bundled, so the target Mac needs no developer tools or setup
